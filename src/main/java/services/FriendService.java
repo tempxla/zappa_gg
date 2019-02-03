@@ -32,8 +32,15 @@ public class FriendService {
   private static final String LIMIT_STATUS_FOLLOWERS = "followers";
   private static final String LIMIT_STATUS_FRIENDS = "friends";
   private static final int API_PAGE_SIZE = 100;
-  private static final int GAE_PAGE_SIZE = 500;
-  private static final int REMOVE_DAY = 20;
+  private static final int API_MAX_COUNT = 15;
+  private static final int GAE_PAGE_SIZE = 1000;
+  private static final int REMOVE_DAY = 30;
+
+  // GAE の1日あたりの制限 エンティティ 読み込み数 50,000 書き込み数 20,000 削除数 20,000
+  // 1回の実行で、Twitter: 100 PageSize * 15 Count = 1,500 ( > DataStore: 1000 )
+  // Entity 書き込み 4時間毎に実行した場合、1日で 1,500 * 6 = 9,000
+  // 1日あたりの制限の半分以下くらいに収まる。
+  // よって4時間毎に実行することとする。
 
   @FunctionalInterface
   private interface Function<T, R> {
@@ -54,7 +61,7 @@ public class FriendService {
       throws TwitterException {
     // API制限取得
     final RateLimitStatus rateLimitStatus = tw.getRateLimitStatus(statusName).get(apiName);
-    final int limit = rateLimitStatus.getRemaining();
+    final int limit = Math.min(rateLimitStatus.getRemaining(), API_MAX_COUNT);
     // カーソル初期化
     long cursor = PagableResponseList.START;
     NextCursorDao nextCursorDao = new NextCursorDao();
