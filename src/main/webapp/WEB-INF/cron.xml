@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cronentries>
+  <cron>
+    <url>/cron/ZappaBot</url>
+    <description>ZappaBot tweets</description>
+    <schedule>every 6 mins</schedule>
+    <timezone>Asia/Tokyo</timezone>
+  </cron>
+  <cron>
+    <url>/cron/FriendServlet</url>
+    <description>ZappaBot follows</description>
+    <schedule>every 10 hours</schedule>
+    <timezone>Asia/Tokyo</timezone>
+  </cron>
+</cronentries>

@@ -1,0 +1,105 @@
+package zappa_gg;
+
+import static util.WebConstant.MESSAGE_SUCCESS;
+import static util.WebConstant.RES_ATR_MESSAGE;
+import static util.WebConstant.URL_ADMIN;
+
+import java.io.IOException;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import daos.TaskDao;
+import entities.Task;
+import services.FriendService;
+import services.TwitterService;
+import twitter4j.Twitter;
+import twitter4j.TwitterException;
+import util.DateUtil;
+
+/**
+ * Servlet implementation class FriendServlet
+ */
+@SuppressWarnings("serial")
+@WebServlet("/cron/FriendServlet")
+public class FriendServlet extends HttpServlet {
+
+  private static final Logger logger = Logger.getLogger(FriendService.class.getName());
+  private static final int INIT_DAYS = 31;
+
+  @Override
+  protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    run(request, response);
+  }
+
+  @Override
+  protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    run(request, response);
+  }
+
+  /**
+   * メイン
+   *
+   * @param request
+   * @param response
+   * @throws IOException
+   * @throws ServletException
+   */
+  private void run(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    TaskDao taskDao = new TaskDao();
+    List<Task> tasks = taskDao.loadAll();
+    Task oldTask = tasks.stream().min(Comparator.comparing(Task::getUpdateDate)).get();
+    if (DateUtil.addDays(oldTask.getUpdateDate(), INIT_DAYS).compareTo(new Date()) < 0) {
+      // 一定期間実行されないタスクがある場合は異常と見なし、初期状態に戻す。
+      taskDao.initAllTask();
+    } else if (tasks.stream().anyMatch(e -> e.getStatus() == Task.RUNNING)) {
+      // 実行状態のタスクがある場合、優先して実行する。
+      tasks.stream().filter(e -> e.getStatus() == Task.RUNNING).min(Comparator.comparing(Task::getSeq))
+          .ifPresent(this::runTask);
+    } else if (tasks.stream().anyMatch(e -> e.getStatus() == Task.RUNNABLE)) {
+      // 実行可能状態のタスクがある場合、実行する。
+      tasks.stream().filter(e -> e.getStatus() == Task.RUNNABLE).min(Comparator.comparing(Task::getSeq))
+          .ifPresent(this::runTask);
+    } else if (tasks.stream().allMatch(e -> e.getStatus() == Task.WAIT)) {
+      // 全て待機状態の場合、初期状態に戻す。
+      taskDao.initAllTask();
+    } else {
+      logger.log(Level.WARNING, "<<<unreachable code>>>");
+    }
+    request.setAttribute(RES_ATR_MESSAGE, MESSAGE_SUCCESS);
+    request.getRequestDispatcher(URL_ADMIN).forward(request, response);
+  }
+
+  private void runTask(Task task) {
+    TaskDao taskDao = new TaskDao();
+    taskDao.updateTask(task.getId(), Task.RUNNING, new Date());
+    Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
+    FriendService friendService = new FriendService();
+    try {
+      switch (task.getId()) {
+      case TaskDao.TASK_GAE_FRIEND_LIST:
+        friendService.updateFriendships(tw);
+        break;
+      case TaskDao.TASK_TW_FOLLOWERS_LIST:
+        friendService.updateFollowerDate(tw);
+        break;
+      case TaskDao.TASK_TW_FRIENDS_LIST:
+        friendService.updateFollowingDate(tw);
+        break;
+      default:
+        break;
+      }
+    } catch (TwitterException e) {
+      logger.log(Level.WARNING, e.toString());
+    }
+  }
+
+}
