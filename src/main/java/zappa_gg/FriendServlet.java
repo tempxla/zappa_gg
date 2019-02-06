@@ -32,7 +32,7 @@ import util.DateUtil;
 @WebServlet("/cron/FriendServlet")
 public class FriendServlet extends HttpServlet {
 
-  private static final Logger logger = Logger.getLogger(FriendService.class.getName());
+  private static final Logger logger = Logger.getLogger(FriendServlet.class.getName());
   private static final int INIT_DAYS = 31;
 
   @Override
@@ -79,24 +79,25 @@ public class FriendServlet extends HttpServlet {
   }
 
   private void runTask(Task task) {
-    TaskDao taskDao = new TaskDao();
-    taskDao.updateTask(task.getId(), Task.RUNNING, new Date());
+    Date nowDate = new Date();
+    boolean taskEnd = false;
     Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
     FriendService friendService = new FriendService();
     try {
       switch (task.getId()) {
       case TaskDao.TASK_GAE_FRIEND_LIST:
-        friendService.updateFriendships(tw);
+        taskEnd = friendService.updateFriendships(tw, nowDate);
         break;
       case TaskDao.TASK_TW_FOLLOWERS_LIST:
-        friendService.updateFollowerDate(tw);
+        taskEnd = friendService.updateFollowerDate(tw, nowDate);
         break;
       case TaskDao.TASK_TW_FRIENDS_LIST:
-        friendService.updateFollowingDate(tw);
+        taskEnd = friendService.updateFollowingDate(tw, nowDate);
         break;
       default:
         break;
       }
+      new TaskDao().updateTask(task.getId(), taskEnd ? Task.WAIT : Task.RUNNING, nowDate);
     } catch (TwitterException e) {
       logger.log(Level.WARNING, e.toString());
     }

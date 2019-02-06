@@ -10,6 +10,7 @@ import static util.WebConstant.URL_ADMIN;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -151,7 +152,7 @@ public class AdminServlet extends HttpServlet {
       throws ServletException, IOException {
     Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
     try {
-      new FriendService().updateFollowerDate(tw);
+      new FriendService().updateFollowerDate(tw, new Date());
       setSuccessMessage(request);
     } catch (TwitterException e) {
       setErrorMessage(request, e.toString());
@@ -171,7 +172,7 @@ public class AdminServlet extends HttpServlet {
       throws ServletException, IOException {
     Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
     try {
-      new FriendService().updateFollowingDate(tw);
+      new FriendService().updateFollowingDate(tw, new Date());
       setSuccessMessage(request);
     } catch (TwitterException e) {
       setErrorMessage(request, e.toString());
@@ -218,7 +219,7 @@ public class AdminServlet extends HttpServlet {
       throws ServletException, IOException {
     Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
     try {
-      new FriendService().updateFriendships(tw);
+      new FriendService().updateFriendships(tw, new Date());
       setSuccessMessage(request);
     } catch (TwitterException e) {
       setErrorMessage(request, e.toString());
