@@ -1,10 +1,16 @@
 package admin;
 
-import static util.WebConstant.*;
+import static util.WebConstant.MESSAGE_ERROR;
+import static util.WebConstant.MESSAGE_NOT_FOUND;
+import static util.WebConstant.MESSAGE_NO_PARAMS;
+import static util.WebConstant.MESSAGE_SUCCESS;
+import static util.WebConstant.RES_ATR_MESSAGE;
+import static util.WebConstant.URL_ADMIN;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -267,6 +273,20 @@ public class AdminServlet extends HttpServlet {
       Set<Long> followList = tw.getUserListMembers(ZappaBot.SCREEN_NAME, "follow", 100, PagableResponseList.START, true)
           .stream().map(User::getId).collect(Collectors.toSet());
       setSuccessMessage(request, followList.toString());
+    } catch (TwitterException e) {
+      setErrorMessage(request, e.toString());
+    }
+    forwardAdminPage(request, response);
+  }
+
+  public void debug2(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
+    try {
+      Set<String> replied = new HashSet<>();
+      Set<String> speakList = tw
+          .getUserListMembers(ZappaBot.SCREEN_NAME, "speak", 100, PagableResponseList.START, true)
+          .stream().map(User::getScreenName).filter(s -> !replied .contains(s)).collect(Collectors.toSet());
+      setSuccessMessage(request, speakList.toString());
     } catch (TwitterException e) {
       setErrorMessage(request, e.toString());
     }

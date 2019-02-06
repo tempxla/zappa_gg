@@ -48,6 +48,7 @@ tokenSecret: <input type="text" name="tokenSecret" value="${ tokenSecret }"><br>
 <form id="adminForm" action="/admin/AdminServlet" method="POST">
 <input type="button" value="Clear" onclick="postAdminForm('clear')">
 <input type="button" value="Debug" onclick="postAdminForm('debug')">
+<input type="button" value="Debug2" onclick="postAdminForm('debug2')">
 <input type="hidden" name="func">
 </form>
 <script type="text/javascript">

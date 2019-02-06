@@ -3,9 +3,12 @@ package zappa_gg;
 import java.io.IOException;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.TimeZone;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -14,10 +17,12 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import services.TwitterService;
+import twitter4j.PagableResponseList;
 import twitter4j.Status;
 import twitter4j.StatusUpdate;
 import twitter4j.Twitter;
 import twitter4j.TwitterException;
+import twitter4j.User;
 
 /**
  * Servlet implementation class ZappaBot
@@ -28,10 +33,13 @@ public final class ZappaBot extends HttpServlet {
 
   public static final String SCREEN_NAME = "zappa_gg";
 
+  private static final Logger logger = Logger.getLogger(ZappaBot.class.getName());
+
   private static final String TIMEZONE = "Asia/Tokyo";
   private static final int PER_MINUTES_CRON = 6;
 
-  private static final Logger logger = Logger.getLogger(ZappaBot.class.getName());
+  private static final String SPEAK_LIST_NAME = "speak";
+  private static final int API_PAGE_SIZE = 100;
 
   @Override
   protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -54,11 +62,17 @@ public final class ZappaBot extends HttpServlet {
     try {
       // CRON 6min の場合 1/10 の確率でツイートする。大体1時間に1回ツイート。
       if (probably(1, 60 / PER_MINUTES_CRON)) {
-        tw.updateStatus(selectTweetRandom(Messages.TWEETS));
+        tw.updateStatus(selectStringRandom(Messages.TWEETS));
       }
-      // 2/3 の確率で返信する
+      // リプライ済みのアカウント
+      Set<String> replied = new HashSet<>();
+      // 2/3 の確率で返信する。
       if (probably(2, 3)) {
-        reply(tw);
+        reply(tw, replied);
+      }
+      // 1日に1回くらい、誰かに話かける。
+      if (probably(1, 60 * 24 / PER_MINUTES_CRON)) {
+        speak(tw, replied);
       }
     } catch (TwitterException e) {
       logger.log(Level.WARNING, e.toString());
@@ -69,9 +83,10 @@ public final class ZappaBot extends HttpServlet {
    * 返信する
    *
    * @param tw
+   * @param replied
    * @throws TwitterException
    */
-  private void reply(Twitter tw) throws TwitterException {
+  private void reply(Twitter tw, Set<String> replied) throws TwitterException {
     // 前回のCRON実行日時
     Calendar tmp = Calendar.getInstance(TimeZone.getTimeZone(TIMEZONE));
     tmp.add(Calendar.MINUTE, -PER_MINUTES_CRON);
@@ -79,10 +94,43 @@ public final class ZappaBot extends HttpServlet {
     for (Status s : tw.getMentionsTimeline()) {
       // 前回のCRON実行日時からの差分
       if (s.getCreatedAt().after(prevCronRunAt)) {
-        String tweet = "@" + s.getUser().getScreenName() + " " + selectTweetRandom(Messages.TWEETS);
-        tw.updateStatus(new StatusUpdate(tweet).inReplyToStatusId(s.getId()));
+        String screenName = s.getUser().getScreenName();
+        if (!replied.contains(screenName)) {
+          String tweet = makeReplyFormat(screenName, selectStringRandom(Messages.TWEETS));
+          tw.updateStatus(new StatusUpdate(tweet).inReplyToStatusId(s.getId()));
+          replied.add(screenName);
+        }
       }
     }
+  }
+
+  /**
+   * 話かける
+   *
+   * @param tw
+   * @param replied
+   * @throws TwitterException
+   */
+  private void speak(Twitter tw, Set<String> replied) throws TwitterException {
+    Set<String> speakList = tw
+        .getUserListMembers(ZappaBot.SCREEN_NAME, SPEAK_LIST_NAME, API_PAGE_SIZE, PagableResponseList.START, true)
+        .stream().map(User::getScreenName).filter(s -> !replied.contains(s)).collect(Collectors.toSet());
+    if (!speakList.isEmpty()) {
+      String screenName = selectStringRandom(speakList.toArray(new String[speakList.size()]));
+      tw.updateStatus(makeReplyFormat(screenName, selectStringRandom(Messages.TWEETS)));
+      replied.add(screenName);
+    }
+  }
+
+  /**
+   * リプライのフォーマット
+   *
+   * @param screenName
+   * @param text
+   * @return
+   */
+  private String makeReplyFormat(String screenName, String text) {
+    return "@" + screenName + " " + text;
   }
 
   /**
@@ -101,11 +149,11 @@ public final class ZappaBot extends HttpServlet {
   /**
    * 配列の中からランダムに一つ選ぶ。
    *
-   * @param tweets
+   * @param stringList
    * @return
    */
-  private String selectTweetRandom(String[] tweets) {
-    return tweets[makeRandomValue(tweets.length)];
+  private String selectStringRandom(String[] stringList) {
+    return stringList[makeRandomValue(stringList.length)];
   }
 
   /**
