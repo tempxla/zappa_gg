@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletException;
@@ -19,9 +21,11 @@ import daos.TwitterApiKeyDao;
 import entities.TwitterApiKey;
 import services.FriendService;
 import services.TwitterService;
+import twitter4j.PagableResponseList;
 import twitter4j.RateLimitStatus;
 import twitter4j.Twitter;
 import twitter4j.TwitterException;
+import twitter4j.User;
 import zappa_gg.ZappaBot;
 
 /**
@@ -246,6 +250,26 @@ public class AdminServlet extends HttpServlet {
    * @throws IOException
    */
   public void clear(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    forwardAdminPage(request, response);
+  }
+
+  /**
+   * Debug用
+   *
+   * @param request
+   * @param response
+   * @throws ServletException
+   * @throws IOException
+   */
+  public void debug(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
+    try {
+      Set<Long> followList = tw.getUserListMembers(ZappaBot.SCREEN_NAME, "follow", 100, PagableResponseList.START, true)
+          .stream().map(User::getId).collect(Collectors.toSet());
+      setSuccessMessage(request, followList.toString());
+    } catch (TwitterException e) {
+      setErrorMessage(request, e.toString());
+    }
     forwardAdminPage(request, response);
   }
 

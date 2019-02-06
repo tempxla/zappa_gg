@@ -4,6 +4,7 @@ import static com.googlecode.objectify.ObjectifyService.ofy;
 
 import java.util.Date;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.google.appengine.api.datastore.Cursor;
@@ -31,6 +32,7 @@ public class FriendService {
   private static final String API_FRIENDS_LIST = "/friends/list";
   private static final String LIMIT_STATUS_FOLLOWERS = "followers";
   private static final String LIMIT_STATUS_FRIENDS = "friends";
+  private static final String FOLLOW_LIST_NAME = "follow";
   private static final int API_PAGE_SIZE = 100;
   private static final int API_MAX_COUNT = 15;
   private static final int GAE_PAGE_SIZE = 1000;
@@ -155,6 +157,10 @@ public class FriendService {
         query = query.startAt(Cursor.fromWebSafeString(nextCursor.getNextCursor()));
       }
     }
+    // リムーブ対象外リスト
+    Set<Long> followList = tw
+        .getUserListMembers(ZappaBot.SCREEN_NAME, FOLLOW_LIST_NAME, API_PAGE_SIZE, PagableResponseList.START, true)
+        .stream().map(User::getId).collect(Collectors.toSet());
     // Twitterステータス更新用
     TwitterFriendDao twitterFriendDao = new TwitterFriendDao();
     // DBから取得。Twitterの情報を更新。
@@ -168,15 +174,16 @@ public class FriendService {
           if (user.getLastFollowedByDate() != null && user.getLastFollowingDate() == null) {
             // フォローされている & フォローしてない場合、フォロー
             tw.createFriendship(user.getId());
-          } else if (user.getLastFollowedByDate() == null && user.getLastFollowingDate() != null) {
+          } else if ((user.getLastFollowedByDate() == null && user.getLastFollowingDate() != null)
+              || (user.getLastFollowedByDate() != null
+                  && DateUtil.addDays(user.getLastFollowedByDate(), REMOVE_DAY).compareTo(nowDate) < 0)) {
             // フォローされていない & フォローしている場合、リムーブ
-            tw.destroyFriendship(user.getId());
-            twitterFriendDao.delete(user.getId());
-          } else if (user.getLastFollowedByDate() != null
-              && DateUtil.addDays(user.getLastFollowedByDate(), REMOVE_DAY).compareTo(nowDate) < 0) {
             // 一定期間フォローされていない場合、リムーブ
-            tw.destroyFriendship(user.getId());
-            twitterFriendDao.delete(user.getId());
+            // ただし、followリストに含まれる場合は対象外
+            if (!followList.contains(user.getId())) {
+              tw.destroyFriendship(user.getId());
+              twitterFriendDao.delete(user.getId());
+            }
           } else if (user.getLastFollowingDate() != null
               && DateUtil.addDays(user.getLastFollowingDate(), REMOVE_DAY).compareTo(nowDate) < 0) {
             // 一定期間フォローしていない場合、DBから削除
