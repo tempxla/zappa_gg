@@ -5,6 +5,7 @@ import static com.googlecode.objectify.ObjectifyService.ofy;
 import java.util.Date;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import com.google.appengine.api.datastore.Cursor;
@@ -24,6 +25,8 @@ import util.DateUtil;
 import zappa_gg.ZappaBot;
 
 public class FriendService {
+
+  private static final Logger logger = Logger.getLogger(FriendService.class.getName());
 
   private static final String GAE_FRIEND_LIST = "/gae/datastore/TwitterFriend";
   private static final String API_FOLLOWERS_LIST = "/followers/list";
@@ -145,6 +148,9 @@ public class FriendService {
    * @throws TwitterException
    */
   public boolean updateFriendships(Twitter tw, Date date) throws TwitterException {
+    // ログ用
+    int logRemoveCount = 0;
+    int logFollowCount = 0;
     // カーソル初期化
     Query<TwitterFriend> query = ofy().load().type(TwitterFriend.class).limit(GAE_PAGE_SIZE);
     NextCursorDao nextCursorDao = new NextCursorDao();
@@ -173,6 +179,7 @@ public class FriendService {
           if (user.getLastFollowedByDate() != null && user.getLastFollowingDate() == null) {
             // フォローされている & フォローしてない場合、フォロー
             tw.createFriendship(user.getId());
+            logFollowCount++;
           } else if ((user.getLastFollowedByDate() == null && user.getLastFollowingDate() != null)
               || (user.getLastFollowedByDate() != null
                   && DateUtil.addDays(user.getLastFollowedByDate(), REMOVE_DAY).compareTo(date) < 0)) {
@@ -182,6 +189,7 @@ public class FriendService {
             if (!followList.contains(user.getId())) {
               tw.destroyFriendship(user.getId());
               twitterFriendDao.delete(user.getId());
+              logRemoveCount++;
             }
           } else if (user.getLastFollowingDate() != null
               && DateUtil.addDays(user.getLastFollowingDate(), REMOVE_DAY).compareTo(date) < 0) {
@@ -189,9 +197,11 @@ public class FriendService {
             twitterFriendDao.delete(user.getId());
           }
         } catch (TwitterException e) {
-          // ユーザーが見つからない場合は無視
+          // ユーザーが見つからない場合、DBから削除
           // statusCode=403, message=Cannot find specified user., code=108
-          if (e.getErrorCode() != 108) {
+          if (e.getErrorCode() == 108) {
+            twitterFriendDao.delete(user.getId());
+          } else {
             throw e;
           }
         }
@@ -199,7 +209,6 @@ public class FriendService {
       }
     } finally {
       // カーソル位置を保存
-      newCursor = null;
       if (hasNext) {
         newCursor = iter.getCursor().toWebSafeString();
       }
@@ -209,6 +218,7 @@ public class FriendService {
         nextCursorDao.updateNextCursor(nextCursor, newCursor);
       }
     }
+    logger.info(String.format("follow:%d %remove:%d", logFollowCount, logRemoveCount));
     return newCursor == null || newCursor.isEmpty();
   }
 

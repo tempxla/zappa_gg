@@ -6,7 +6,6 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.TimeZone;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -70,12 +69,12 @@ public final class ZappaBot extends HttpServlet {
       if (probably(2, 3)) {
         reply(tw, replied);
       }
-      // 1日に1回くらい、誰かに話かける。
-      if (probably(1, 60 * 24 / PER_MINUTES_CRON)) {
+      // 3日に1回くらい、誰かに話かける。
+      if (probably(1, 60 * 24 * 3 / PER_MINUTES_CRON)) {
         speak(tw, replied);
       }
     } catch (TwitterException e) {
-      logger.log(Level.WARNING, e.toString());
+      logger.warning(e.toString());
     }
   }
 

@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
@@ -72,13 +71,14 @@ public class FriendServlet extends HttpServlet {
       // 全て待機状態の場合、初期状態に戻す。
       taskDao.initAllTask();
     } else {
-      logger.log(Level.WARNING, "<<<unreachable code>>>");
+      logger.warning("<<<unreachable code>>>");
     }
     request.setAttribute(RES_ATR_MESSAGE, MESSAGE_SUCCESS);
     request.getRequestDispatcher(URL_ADMIN).forward(request, response);
   }
 
   private void runTask(Task task) {
+    logger.info(String.format("[START]%s", task.getId()));
     Date nowDate = new Date();
     boolean taskEnd = false;
     Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
@@ -97,10 +97,12 @@ public class FriendServlet extends HttpServlet {
       default:
         break;
       }
-      new TaskDao().updateTask(task.getId(), taskEnd ? Task.WAIT : Task.RUNNING, nowDate);
     } catch (TwitterException e) {
-      logger.log(Level.WARNING, e.toString());
+      logger.warning(e.toString());
     }
+    int status = taskEnd ? Task.WAIT : Task.RUNNING;
+    new TaskDao().updateTask(task.getId(), status, nowDate);
+    logger.info(String.format("[END]%s (%d)", task.getId(), status));
   }
 
 }
