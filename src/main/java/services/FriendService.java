@@ -22,6 +22,8 @@ import twitter4j.Twitter;
 import twitter4j.TwitterException;
 import twitter4j.User;
 import util.DateUtil;
+import util.LogUtil;
+import zappa_gg.Messages;
 import zappa_gg.ZappaBot;
 
 public class FriendService {
@@ -37,7 +39,7 @@ public class FriendService {
   private static final int API_PAGE_SIZE = 100;
   private static final int API_MAX_COUNT = 15;
   private static final int GAE_PAGE_SIZE = 1000;
-  private static final int REMOVE_DAY = 30;
+  private static final int REMOVE_DAYS = 30;
 
   // GAE の1日あたりの制限 エンティティ 読み込み数 50,000 書き込み数 20,000 削除数 20,000
   // 1回の実行で、Twitter: 100 PageSize * 15 Count = 1,500 ( > DataStore: 1000 )
@@ -182,7 +184,7 @@ public class FriendService {
             logFollowCount++;
           } else if ((user.getLastFollowedByDate() == null && user.getLastFollowingDate() != null)
               || (user.getLastFollowedByDate() != null
-                  && DateUtil.addDays(user.getLastFollowedByDate(), REMOVE_DAY).compareTo(date) < 0)) {
+                  && DateUtil.addDays(user.getLastFollowedByDate(), REMOVE_DAYS).compareTo(date) < 0)) {
             // フォローされていない & フォローしている場合、リムーブ
             // 一定期間フォローされていない場合、リムーブ
             // ただし、followリストに含まれる場合は対象外
@@ -192,7 +194,7 @@ public class FriendService {
               logRemoveCount++;
             }
           } else if (user.getLastFollowingDate() != null
-              && DateUtil.addDays(user.getLastFollowingDate(), REMOVE_DAY).compareTo(date) < 0) {
+              && DateUtil.addDays(user.getLastFollowingDate(), REMOVE_DAYS).compareTo(date) < 0) {
             // 一定期間フォローしていない場合、DBから削除
             twitterFriendDao.delete(user.getId());
           }
@@ -202,6 +204,8 @@ public class FriendService {
           if (e.getErrorCode() == 108) {
             twitterFriendDao.delete(user.getId());
           } else {
+            LogUtil.sendDirectMessage(tw, String.format("%s: user:%d statusCode:%d code:%d message:%s",
+                Messages.ERROR_MESSAGE, user.getId(), e.getStatusCode(), e.getErrorCode(), e.getMessage()));
             throw e;
           }
         }
@@ -218,7 +222,7 @@ public class FriendService {
         nextCursorDao.updateNextCursor(nextCursor, newCursor);
       }
     }
-    logger.info(String.format("follow:%d %remove:%d", logFollowCount, logRemoveCount));
+    logger.info(String.format("follow:%d remove:%d", logFollowCount, logRemoveCount));
     return newCursor == null || newCursor.isEmpty();
   }
 

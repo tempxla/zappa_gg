@@ -171,4 +171,7 @@ public interface Messages {
       "し、白いカバが…",
       "初回特典に負けちゃったぁ…",
   };
+
+  static String INIT_MESSAGE = "楽になった…";
+  static String ERROR_MESSAGE = "助けてっ";
 }

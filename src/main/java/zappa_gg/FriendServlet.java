@@ -23,6 +23,7 @@ import services.TwitterService;
 import twitter4j.Twitter;
 import twitter4j.TwitterException;
 import util.DateUtil;
+import util.LogUtil;
 
 /**
  * Servlet implementation class FriendServlet
@@ -32,7 +33,7 @@ import util.DateUtil;
 public class FriendServlet extends HttpServlet {
 
   private static final Logger logger = Logger.getLogger(FriendServlet.class.getName());
-  private static final int INIT_DAYS = 31;
+  private static final int INIT_DAYS = 15;
 
   @Override
   protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -53,20 +54,22 @@ public class FriendServlet extends HttpServlet {
    * @throws ServletException
    */
   private void run(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
     TaskDao taskDao = new TaskDao();
     List<Task> tasks = taskDao.loadAll();
     Task oldTask = tasks.stream().min(Comparator.comparing(Task::getUpdateDate)).get();
     if (DateUtil.addDays(oldTask.getUpdateDate(), INIT_DAYS).compareTo(new Date()) < 0) {
       // 一定期間実行されないタスクがある場合は異常と見なし、初期状態に戻す。
       taskDao.initAllTask();
+      LogUtil.sendDirectMessage(tw, Messages.INIT_MESSAGE);
     } else if (tasks.stream().anyMatch(e -> e.getStatus() == Task.RUNNING)) {
       // 実行状態のタスクがある場合、優先して実行する。
       tasks.stream().filter(e -> e.getStatus() == Task.RUNNING).min(Comparator.comparing(Task::getSeq))
-          .ifPresent(this::runTask);
+          .ifPresent(task -> runTask(tw, task));
     } else if (tasks.stream().anyMatch(e -> e.getStatus() == Task.RUNNABLE)) {
       // 実行可能状態のタスクがある場合、実行する。
       tasks.stream().filter(e -> e.getStatus() == Task.RUNNABLE).min(Comparator.comparing(Task::getSeq))
-          .ifPresent(this::runTask);
+          .ifPresent(task -> runTask(tw, task));
     } else if (tasks.stream().allMatch(e -> e.getStatus() == Task.WAIT)) {
       // 全て待機状態の場合、初期状態に戻す。
       taskDao.initAllTask();
@@ -77,11 +80,10 @@ public class FriendServlet extends HttpServlet {
     request.getRequestDispatcher(URL_ADMIN).forward(request, response);
   }
 
-  private void runTask(Task task) {
+  private void runTask(Twitter tw, Task task) {
     logger.info(String.format("[START]%s", task.getId()));
     Date nowDate = new Date();
     boolean taskEnd = false;
-    Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
     FriendService friendService = new FriendService();
     try {
       switch (task.getId()) {
