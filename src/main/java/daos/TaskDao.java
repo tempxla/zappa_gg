@@ -20,35 +20,23 @@ public class TaskDao {
   }
 
   public void initAllTask() {
-    initTask(TASK_GAE_FRIEND_LIST);
-    initTask(TASK_TW_FOLLOWERS_LIST);
-    initTask(TASK_TW_FRIENDS_LIST);
+    Date date = new Date();
+    initTask(TASK_TW_FOLLOWERS_LIST, date, 1);
+    initTask(TASK_TW_FRIENDS_LIST, date, 2);
+    initTask(TASK_GAE_FRIEND_LIST, date, 3);
   }
 
-  public void initTask(String id) {
+  private void initTask(String id, Date updateDate, int seq) {
     Task entity = new Task();
     entity.setId(id);
     entity.setStatus(Task.RUNNABLE);
-    entity.setUpdateDate(new Date());
-    switch (id) {
-    case TASK_GAE_FRIEND_LIST:
-      entity.setSeq(3);
-      break;
-    case TASK_TW_FOLLOWERS_LIST:
-      entity.setSeq(1);
-      break;
-    case TASK_TW_FRIENDS_LIST:
-      entity.setSeq(2);
-      break;
-    default:
-      break;
-    }
+    entity.setUpdateDate(updateDate);
+    entity.setSeq(seq);
     ofy().save().entities(entity).now();
   }
 
   public void updateTask(String id, int status, Date date) {
     Task entity = loadById(id);
-    entity.setId(id);
     entity.setStatus(status);
     entity.setUpdateDate(date);
     ofy().save().entities(entity).now();
