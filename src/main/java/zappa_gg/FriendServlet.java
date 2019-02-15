@@ -97,6 +97,8 @@ public class FriendServlet extends HttpServlet {
       case TaskDao.TASK_TW_FRIENDS_LIST:
         taskEnd = friendService.updateFollowingDate(tw, nowDate);
         break;
+      case TaskDao.TASK_GAE_UNFOLLOW_LIST:
+        taskEnd = friendService.updateUnfollow(tw);
       default:
         break;
       }

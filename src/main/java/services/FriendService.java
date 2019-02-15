@@ -44,7 +44,7 @@ public class FriendService {
   private static final String FOLLOW_LIST_NAME = "follow";
   private static final int API_LIST_PAGE_SIZE = 100;
   private static final int API_LOOKUP_PAGE_SIZE = 100;
-  private static final int API_LIST_MAX_COUNT = 7;
+  private static final int API_LIST_MAX_COUNT = 8;
   private static final int GAE_PAGE_SIZE = 500;
   private static final int REMOVE_DAYS = 30;
 

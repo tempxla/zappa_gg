@@ -12,7 +12,7 @@ import entities.Task;
 public class TaskDao {
 
   public static final String TASK_GAE_FRIEND_LIST = "/gae/datastore/TwitterFriend";
-  private static final String TASK_GAE_UNFOLLOW_LIST = "/gae/datastore/Unfollow";
+  public static final String TASK_GAE_UNFOLLOW_LIST = "/gae/datastore/Unfollow";
   public static final String TASK_TW_FOLLOWERS_LIST = "/followers/list";
   public static final String TASK_TW_FRIENDS_LIST = "/friends/list";
 
@@ -39,7 +39,7 @@ public class TaskDao {
     entity.setStatus(Task.RUNNABLE);
     entity.setUpdateDate(updateDate);
     entity.setSeq(seq);
-    entity.setEnabled(true);
+    entity.setEnabled(false);
     ofy().save().entities(entity).now();
   }
 

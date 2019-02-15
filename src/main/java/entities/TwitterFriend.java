@@ -22,5 +22,5 @@ public class TwitterFriend {
   private Date lastFollowedByDate;
   @Getter
   @Setter
-  private boolean isUnfollow;
+  private boolean unfollow;
 }
