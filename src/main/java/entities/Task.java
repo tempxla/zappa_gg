@@ -26,4 +26,7 @@ public class Task {
   @Getter
   @Setter
   private int seq;
+  @Getter
+  @Setter
+  private boolean enabled;
 }

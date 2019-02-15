@@ -10,6 +10,7 @@ import static util.WebConstant.URL_ADMIN;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Map;
@@ -33,6 +34,7 @@ import twitter4j.RateLimitStatus;
 import twitter4j.Twitter;
 import twitter4j.TwitterException;
 import twitter4j.User;
+import util.LogUtil;
 import zappa_gg.ZappaBot;
 
 /**
@@ -44,6 +46,7 @@ public class AdminServlet extends HttpServlet {
 
   // リクエストパラメータ
   private static final String REQ_PRM_FUNC = "func";
+  private static final String REQ_PRM_TW_IDS = "tw_ids";
 
   // リクエスト・レスポンス共通パラメータ
   private static final String REQ_RES_COMSUMER_KEY = "comsumerKey";
@@ -81,7 +84,7 @@ public class AdminServlet extends HttpServlet {
       method.invoke(this, request, response);
     } catch (NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException
         | InvocationTargetException e) {
-      setErrorMessage(request, e.toString());
+      setErrorMessage(request, LogUtil.printStackTraceString(e));
       forwardAdminPage(request, response);
     }
   }
@@ -227,6 +230,26 @@ public class AdminServlet extends HttpServlet {
     forwardAdminPage(request, response);
   }
 
+  /**
+   * DBの情報を元に、Unfollow判定を実行する。
+   *
+   * @param request
+   * @param response
+   * @throws ServletException
+   * @throws IOException
+   */
+  public void updateUnfollow(HttpServletRequest request, HttpServletResponse response)
+      throws ServletException, IOException {
+    Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
+    try {
+      new FriendService().updateUnfollow(tw);
+      setSuccessMessage(request);
+    } catch (TwitterException e) {
+      setErrorMessage(request, e.toString());
+    }
+    forwardAdminPage(request, response);
+  }
+
   // ----------------------------------------------------------------------------------------------
   // TASK MANAGEMENT
   // ----------------------------------------------------------------------------------------------
@@ -284,10 +307,27 @@ public class AdminServlet extends HttpServlet {
     Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
     try {
       Set<String> replied = new HashSet<>();
-      Set<String> speakList = tw
-          .getUserListMembers(ZappaBot.SCREEN_NAME, "speak", 100, PagableResponseList.START, true)
-          .stream().map(User::getScreenName).filter(s -> !replied .contains(s)).collect(Collectors.toSet());
+      Set<String> speakList = tw.getUserListMembers(ZappaBot.SCREEN_NAME, "speak", 100, PagableResponseList.START, true)
+          .stream().map(User::getScreenName).filter(s -> !replied.contains(s)).collect(Collectors.toSet());
       setSuccessMessage(request, speakList.toString());
+    } catch (TwitterException e) {
+      setErrorMessage(request, e.toString());
+    }
+    forwardAdminPage(request, response);
+  }
+
+  public void debug3(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    System.out.println("AA");
+    Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
+    try {
+      StringBuilder sb = new StringBuilder();
+      String[] param = request.getParameter(REQ_PRM_TW_IDS).split(",");
+      tw.lookupUsers(Arrays.asList(param).stream().mapToLong(s -> Long.valueOf(s).longValue()).toArray()).stream()
+          .forEach(user -> {
+            sb.append(user.getScreenName() + "\n" + user.getDescription() + "\n");
+            sb.append("============================" + "\n");
+          });
+      setSuccessMessage(request, sb.toString());
     } catch (TwitterException e) {
       setErrorMessage(request, e.toString());
     }

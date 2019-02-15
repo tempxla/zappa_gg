@@ -9,7 +9,7 @@
   <cron>
     <url>/cron/FriendServlet</url>
     <description>ZappaBot follows</description>
-    <schedule>every 4 hours</schedule>
+    <schedule>every 2 hours</schedule>
     <timezone>Asia/Tokyo</timezone>
   </cron>
 </cronentries>

@@ -9,6 +9,7 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -56,11 +57,11 @@ public class FriendServlet extends HttpServlet {
   private void run(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
     Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
     TaskDao taskDao = new TaskDao();
-    List<Task> tasks = taskDao.loadAll();
+    List<Task> tasks = taskDao.loadAll().stream().filter(Task::isEnabled).collect(Collectors.toList());
     Task oldTask = tasks.stream().min(Comparator.comparing(Task::getUpdateDate)).get();
     if (DateUtil.addDays(oldTask.getUpdateDate(), INIT_DAYS).compareTo(new Date()) < 0) {
       // 一定期間実行されないタスクがある場合は異常と見なし、初期状態に戻す。
-      taskDao.initAllTask();
+      taskDao.resetTask(tasks);
       LogUtil.sendDirectMessage(tw, Messages.INIT_MESSAGE);
     } else if (tasks.stream().anyMatch(e -> e.getStatus() == Task.RUNNING)) {
       // 実行状態のタスクがある場合、優先して実行する。
@@ -72,7 +73,7 @@ public class FriendServlet extends HttpServlet {
           .ifPresent(task -> runTask(tw, task));
     } else if (tasks.stream().allMatch(e -> e.getStatus() == Task.WAIT)) {
       // 全て待機状態の場合、初期状態に戻す。
-      taskDao.initAllTask();
+      taskDao.resetTask(tasks);
     } else {
       logger.warning("<<<unreachable code>>>");
     }

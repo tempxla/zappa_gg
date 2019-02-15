@@ -6,7 +6,6 @@ import com.googlecode.objectify.annotation.Id;
 import lombok.Getter;
 import lombok.Setter;
 
-
 @Entity
 public class NextCursor {
   @Id

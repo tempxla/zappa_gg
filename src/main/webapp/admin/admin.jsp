@@ -18,48 +18,47 @@ ${ msg }<br>
 </div>
 </c:if>
 <h2>API KEY</h2>
-<form id="adminForm" action="/admin/AdminServlet" method="POST">
+<form action="/admin/AdminServlet" method="POST">
 comsumerKey: <input type="text" name="comsumerKey" value="${ comsumerKey }"><br>
 comsumerSecret: <input type="text" name="comsumerSecret" value="${ comsumerSecret }"><br>
 accessToken: <input type="text" name="accessToken" value="${ accessToken }"><br>
 tokenSecret: <input type="text" name="tokenSecret" value="${ tokenSecret }"><br>
-<input type="button" value="Update" onclick="postAdminForm('update')">
-<input type="button" value="Load" onclick="postAdminForm('load')">
+<input type="button" value="Update" onclick="doPost(this.parentNode, 'update')">
+<input type="button" value="Load" onclick="doPost(this.parentNode, 'load')">
 <input type="hidden" name="func">
 </form>
 <h2>FRIENDS MANAGEMENT</h2>
-<form id="adminForm" action="/admin/AdminServlet" method="POST">
-<input type="button" value="Load Follower" onclick="postAdminForm('loadFollower')">
-<input type="button" value="Load Following" onclick="postAdminForm('loadFollowing')">
-<input type="button" value="Show Status" onclick="postAdminForm('showStatus')">
-<input type="button" value="Update" onclick="postAdminForm('updateFriendship')">
+<form action="/admin/AdminServlet" method="POST">
+<input type="button" value="Load Follower" onclick="doPost(this.parentNode, 'loadFollower')">
+<input type="button" value="Load Following" onclick="doPost(this.parentNode, 'loadFollowing')">
+<input type="button" value="Show Status" onclick="doPost(this.parentNode, 'showStatus')">
+<input type="button" value="Detect Unfollow" onclick="doPost(this.parentNode, 'updateUnfollow')">
+<input type="button" value="Update Friendship" onclick="doPost(this.parentNode, 'updateFriendship')">
 <input type="hidden" name="func">
 </form>
 <h2>TASK MANAGEMENT</h2>
-<form id="adminForm" action="/admin/AdminServlet" method="POST">
-<input type="button" value="Init Task" onclick="postAdminForm('initTask')">
+<form action="/admin/AdminServlet" method="POST">
+<input type="button" value="Init Task" onclick="doPost(this.parentNode, 'initTask')">
 <input type="hidden" name="func">
 </form>
 <h3>Run Task</h3>
-<form id="friendForm" action="/cron/FriendServlet" method="POST">
-<input type="button" value="Run Task" onclick="postFriendForm()">
+<form action="/cron/FriendServlet" method="POST">
+<input type="button" value="Run Task" onclick="doPost(this,parentNode)">
+<input type="hidden" name="func">
 </form>
 <hr>
-<form id="adminForm" action="/admin/AdminServlet" method="POST">
-<input type="button" value="Clear" onclick="postAdminForm('clear')">
-<input type="button" value="Debug" onclick="postAdminForm('debug')">
-<input type="button" value="Debug2" onclick="postAdminForm('debug2')">
+<form action="/admin/AdminServlet" method="POST">
+<input type="button" value="Clear" onclick="doPost(this.parentNode, 'clear')">
+<input type="button" value="Debug" onclick="doPost(this.parentNode, 'debug')">
+<input type="button" value="Debug2" onclick="doPost(this.parentNode, 'debug2')">
+<input type="text" name="tw_ids">
+<input type="button" value="Debug3" onclick="doPost(this.parentNode, 'debug3')">
 <input type="hidden" name="func">
 </form>
 <script type="text/javascript">
-  function postAdminForm(func) {
-    var form = document.getElementById("adminForm");
-    form.func.value = func;
-    form.submit();
-  }
-  function postFriendForm(func) {
-    var form = document.getElementById("friendForm");
-    form.submit();
+  function doPost(frm, func) {
+    frm.func.value = func;
+    frm.submit();
   }
 </script>
 </body>

@@ -1,5 +1,7 @@
 package util;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.logging.Logger;
 
 import twitter4j.Twitter;
@@ -18,4 +20,11 @@ public class LogUtil {
       logger.severe(e.toString());
     }
   }
+
+  public static String printStackTraceString(Exception e) {
+    StringWriter sw = new StringWriter();
+    e.printStackTrace(new PrintWriter(sw));
+    return sw.toString();
+  }
+
 }
