@@ -1,7 +1,9 @@
 package daos;
 
 import static com.googlecode.objectify.ObjectifyService.ofy;
+
 import java.util.Date;
+
 import com.googlecode.objectify.Key;
 
 import entities.TwitterFriend;
@@ -42,8 +44,7 @@ public class TwitterFriendDao {
     ofy().save().entities(entity).now();
   }
 
-  public void delete(long id) {
-    ofy().delete().type(TwitterFriend.class).id(id).now();
+  public void delete(TwitterFriend user) {
+    ofy().delete().entity(user).now();
   }
-
 }

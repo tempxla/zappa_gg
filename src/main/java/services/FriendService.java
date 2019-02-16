@@ -45,11 +45,11 @@ public class FriendService {
   private static final int API_LIST_PAGE_SIZE = 100;
   private static final int API_LOOKUP_PAGE_SIZE = 100;
   private static final int API_LIST_MAX_COUNT = 8;
-  private static final int GAE_PAGE_SIZE = 500;
+  private static final int GAE_PAGE_SIZE = 800;
   private static final int REMOVE_DAYS = 30;
 
   // GAE の1日あたりの制限 エンティティ 読み込み数 50,000 書き込み数 20,000 削除数 20,000
-  // 1回の実行で、Twitter: 100 PageSize * 8 Count = 800 ( > DataStore: 500 )
+  // 1回の実行で、Twitter: 100 PageSize * 8 Count = 800 (  DataStore: 800 )
   // Entity 書き込み 2時間毎に実行した場合、1日で 800 * 12 = 9,600
   // 1日あたりの制限の半分以下くらいに収まる。
   // よって2時間毎に実行することとする。
@@ -204,7 +204,7 @@ public class FriendService {
             // ただし、followリストに含まれる場合は対象外
             if (!followList.contains(user.getId())) {
               tw.destroyFriendship(user.getId());
-              twitterFriendDao.delete(user.getId());
+              twitterFriendDao.delete(user);
               logRemoveCount++;
             }
           } else if (user.getLastFollowingDate() != null
@@ -212,7 +212,7 @@ public class FriendService {
             // 一定期間フォローしていない場合、DBから削除
             // ただし、アンフォロー判定を考慮する
             if (!user.isUnfollow()) {
-              twitterFriendDao.delete(user.getId());
+              twitterFriendDao.delete(user);
             }
           }
           // フォロー判定
@@ -226,7 +226,7 @@ public class FriendService {
           // ユーザーが見つからない場合、DBから削除
           // statusCode=403, message=Cannot find specified user., code=108
           if (e.getErrorCode() == 108) {
-            twitterFriendDao.delete(user.getId());
+            twitterFriendDao.delete(user);
           } else {
             LogUtil.sendDirectMessage(tw, String.format("%s: user:%d statusCode:%d code:%d message:%s",
                 Messages.ERROR_MESSAGE, user.getId(), e.getStatusCode(), e.getErrorCode(), e.getMessage()));
