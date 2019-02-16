@@ -49,7 +49,7 @@ public class FriendService {
   private static final int REMOVE_DAYS = 30;
 
   // GAE の1日あたりの制限 エンティティ 読み込み数 50,000 書き込み数 20,000 削除数 20,000
-  // 1回の実行で、Twitter: 100 PageSize * 8 Count = 800 (  DataStore: 800 )
+  // 1回の実行で、Twitter: 100 PageSize * 8 Count = 800 ( DataStore: 800 )
   // Entity 書き込み 2時間毎に実行した場合、1日で 800 * 12 = 9,600
   // 1日あたりの制限の半分以下くらいに収まる。
   // よって2時間毎に実行することとする。
@@ -171,7 +171,7 @@ public class FriendService {
     if (nextCursor != null) {
       cursor = nextCursor.getNextCursor();
       if (cursor != null) {
-        query = query.startAt(Cursor.fromWebSafeString(nextCursor.getNextCursor()));
+        query = query.startAt(Cursor.fromWebSafeString(cursor));
       }
     }
     // リムーブ対象外リスト
@@ -238,6 +238,9 @@ public class FriendService {
       // カーソル位置を保存
       if (hasNext) {
         newCursor = iter.getCursor().toWebSafeString();
+        if (cursor != null && cursor.equals(newCursor)) {
+          newCursor = null;
+        }
       }
       if (nextCursor == null) {
         nextCursorDao.insertNextCursor(GAE_FRIEND_LIST, newCursor);
@@ -292,7 +295,7 @@ public class FriendService {
     if (nextCursor != null) {
       cursor = nextCursor.getNextCursor();
       if (cursor != null) {
-        query = query.startAt(Cursor.fromWebSafeString(nextCursor.getNextCursor()));
+        query = query.startAt(Cursor.fromWebSafeString(cursor));
       }
     }
     // DBから取得。
@@ -320,6 +323,9 @@ public class FriendService {
       // カーソル位置を保存
       if (hasNext) {
         newCursor = iter.getCursor().toWebSafeString();
+        if (cursor != null && cursor.equals(newCursor)) {
+          newCursor = null;
+        }
       }
       if (nextCursor == null) {
         nextCursorDao.insertNextCursor(GAE_UNFOLLOW_LIST, newCursor);
