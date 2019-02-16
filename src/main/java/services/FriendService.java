@@ -180,6 +180,7 @@ public class FriendService {
         .stream().map(User::getId).collect(Collectors.toSet());
     // Twitterステータス更新用
     TwitterFriendDao twitterFriendDao = new TwitterFriendDao();
+    final Date removeDay = DateUtil.addDays(date, -REMOVE_DAYS);
     // DBから取得。Twitterの情報を更新。
     QueryResultIterator<TwitterFriend> iter = query.iterator();
     boolean hasNext = false; // 次ページがあるか
@@ -197,8 +198,7 @@ public class FriendService {
               logFollowCount++;
             }
           } else if ((user.getLastFollowedByDate() == null && user.getLastFollowingDate() != null)
-              || (user.getLastFollowedByDate() != null
-                  && DateUtil.addDays(user.getLastFollowedByDate(), REMOVE_DAYS).compareTo(date) < 0)) {
+              || (user.getLastFollowedByDate() != null && removeDay.after(user.getLastFollowedByDate()))) {
             // フォローされていない & フォローしている場合、リムーブ
             // 一定期間フォローされていない場合、リムーブ
             // ただし、followリストに含まれる場合は対象外
@@ -207,8 +207,7 @@ public class FriendService {
               twitterFriendDao.delete(user);
               logRemoveCount++;
             }
-          } else if (user.getLastFollowingDate() != null
-              && DateUtil.addDays(user.getLastFollowingDate(), REMOVE_DAYS).compareTo(date) < 0) {
+          } else if (user.getLastFollowingDate() != null && removeDay.after(user.getLastFollowingDate())) {
             // 一定期間フォローしていない場合、DBから削除
             // ただし、アンフォロー判定を考慮する
             if (!user.isUnfollow()) {
