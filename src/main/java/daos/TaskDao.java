@@ -39,7 +39,7 @@ public class TaskDao {
     entity.setStatus(Task.RUNNABLE);
     entity.setUpdateDate(updateDate);
     entity.setSeq(seq);
-    entity.setEnabled(false);
+    entity.setEnabled(true);
     ofy().save().entities(entity).now();
   }
 

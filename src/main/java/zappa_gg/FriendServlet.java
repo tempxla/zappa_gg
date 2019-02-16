@@ -58,8 +58,8 @@ public class FriendServlet extends HttpServlet {
     Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
     TaskDao taskDao = new TaskDao();
     List<Task> tasks = taskDao.loadAll().stream().filter(Task::isEnabled).collect(Collectors.toList());
-    Task oldTask = tasks.stream().min(Comparator.comparing(Task::getUpdateDate)).get();
-    if (DateUtil.addDays(oldTask.getUpdateDate(), INIT_DAYS).compareTo(new Date()) < 0) {
+    Task oldTask = tasks.stream().min(Comparator.comparing(Task::getUpdateDate)).orElse(null);
+    if (oldTask != null && DateUtil.addDays(oldTask.getUpdateDate(), INIT_DAYS).compareTo(new Date()) < 0) {
       // 一定期間実行されないタスクがある場合は異常と見なし、初期状態に戻す。
       taskDao.resetTask(tasks);
       LogUtil.sendDirectMessage(tw, Messages.INIT_MESSAGE);
