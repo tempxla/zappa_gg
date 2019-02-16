@@ -2,8 +2,10 @@ package services;
 
 import static com.googlecode.objectify.ObjectifyService.ofy;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -59,18 +61,23 @@ public class FriendService {
     R apply(T t) throws TwitterException;
   }
 
+  @FunctionalInterface
+  private interface BiFunction<T1, T2, R> {
+    R apply(T1 t1, T2 t2) throws TwitterException;
+  }
+
   /**
    * フォローリスト・フォロワーリスト共通処理
    *
    * @param tw
    * @param statusName
    * @param apiName
-   * @param listFunc
+   * @param readFunc
    * @return
    * @throws TwitterException
    */
-  private long loadList(Twitter tw, String statusName, String apiName, Function<Long, Long> listFunc)
-      throws TwitterException {
+  private long loadList(Twitter tw, String statusName, String apiName, BiFunction<Long, List<Long>, Long> listFunc,
+      Function<List<Long>, Boolean> saveFunc) throws TwitterException {
     // API制限取得
     final RateLimitStatus rateLimitStatus = tw.getRateLimitStatus(statusName).get(apiName);
     final int limit = Math.min(rateLimitStatus.getRemaining(), API_LIST_MAX_COUNT);
@@ -83,9 +90,11 @@ public class FriendService {
     }
     // Twitter読み込み & DB書き込み
     try {
+      List<Long> ids = new ArrayList<>();
       for (int i = 0; i < limit && cursor != 0; i++) {
-        cursor = listFunc.apply(cursor);
+        cursor = listFunc.apply(cursor, ids);
       }
+      saveFunc.apply(ids);
     } finally {
       // カーソル位置を保存
       if (nextCursor == null) {
@@ -106,13 +115,16 @@ public class FriendService {
    * @throws TwitterException
    */
   public boolean updateFollowerDate(Twitter tw, Date date) throws TwitterException {
-    final TwitterFriendDao dao = new TwitterFriendDao();
+    TwitterFriendDao twitterFriendDao = new TwitterFriendDao();
     // フォロワー
-    long cur = loadList(tw, LIMIT_STATUS_FOLLOWERS, API_FOLLOWERS_LIST, (Long cursor) -> {
+    long cur = loadList(tw, LIMIT_STATUS_FOLLOWERS, API_FOLLOWERS_LIST, (cursor, ids) -> {
       PagableResponseList<User> users = tw.getFollowersList(ZappaBot.SCREEN_NAME, cursor, API_LIST_PAGE_SIZE, true,
           false);
-      users.stream().forEach(user -> dao.saveLastFollowedByDate(user.getId(), date));
+      users.stream().forEach(user -> ids.add(user.getId()));
       return users.getNextCursor();
+    }, ids -> {
+      twitterFriendDao.saveLastFollowedByDate(ids, date);
+      return true;
     });
     return cur == 0;
   }
@@ -126,13 +138,16 @@ public class FriendService {
    * @throws TwitterException
    */
   public boolean updateFollowingDate(Twitter tw, Date date) throws TwitterException {
-    final TwitterFriendDao dao = new TwitterFriendDao();
+    TwitterFriendDao twitterFriendDao = new TwitterFriendDao();
     // フォロイー
-    long cur = loadList(tw, LIMIT_STATUS_FRIENDS, API_FRIENDS_LIST, (Long cursor) -> {
+    long cur = loadList(tw, LIMIT_STATUS_FRIENDS, API_FRIENDS_LIST, (cursor, ids) -> {
       PagableResponseList<User> users = tw.getFriendsList(ZappaBot.SCREEN_NAME, cursor, API_LIST_PAGE_SIZE, true,
           false);
-      users.stream().forEach(user -> dao.saveLastFollowingDate(user.getId(), date));
+      users.stream().forEach(user -> ids.add(user.getId()));
       return users.getNextCursor();
+    }, ids -> {
+      twitterFriendDao.saveLastFollowingDate(ids, date);
+      return true;
     });
     return cur == 0;
   }

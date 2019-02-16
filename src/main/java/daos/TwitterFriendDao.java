@@ -2,36 +2,42 @@ package daos;
 
 import static com.googlecode.objectify.ObjectifyService.ofy;
 
+import java.util.Collection;
 import java.util.Date;
-
-import com.googlecode.objectify.Key;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.function.Consumer;
 
 import entities.TwitterFriend;
 
 public class TwitterFriendDao {
 
-  private TwitterFriend loadById(long id) {
-    return ofy().load().key(Key.create(TwitterFriend.class, id)).now();
+  private void saveLastDate(List<Long> ids, Consumer<TwitterFriend> setDate) {
+    Set<Long> retainSet = new HashSet<>(ids);
+    // LOAD
+    Collection<TwitterFriend> entities = ofy().load().type(TwitterFriend.class).ids(ids).values();
+    // UPATE
+    for (TwitterFriend friend : entities) {
+      setDate.accept(friend);
+      retainSet.remove(friend.getId());
+    }
+    // INSERT
+    for (Long id : retainSet) {
+      TwitterFriend friend = new TwitterFriend();
+      friend.setId(id);
+      setDate.accept(friend);
+      entities.add(friend);
+    }
+    ofy().save().entities(entities).now();
   }
 
-  public void saveLastFollowedByDate(Long id, Date date) {
-    TwitterFriend friend = loadById(id);
-    if (friend == null) {
-      friend = new TwitterFriend();
-      friend.setId(id);
-    }
-    friend.setLastFollowedByDate(date);
-    ofy().save().entities(friend).now();
+  public void saveLastFollowedByDate(List<Long> ids, Date date) {
+    saveLastDate(ids, friend -> friend.setLastFollowedByDate(date));
   }
 
-  public void saveLastFollowingDate(Long id, Date date) {
-    TwitterFriend friend = loadById(id);
-    if (friend == null) {
-      friend = new TwitterFriend();
-      friend.setId(id);
-    }
-    friend.setLastFollowingDate(date);
-    ofy().save().entities(friend).now();
+  public void saveLastFollowingDate(List<Long> ids, Date date) {
+    saveLastDate(ids, friend -> friend.setLastFollowingDate(date));
   }
 
   public void updateUnfollow(TwitterFriend entity, boolean unfollow) {
