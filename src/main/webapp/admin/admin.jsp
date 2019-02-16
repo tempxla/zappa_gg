@@ -53,6 +53,7 @@ tokenSecret: <input type="text" name="tokenSecret" value="${ tokenSecret }"><br>
 <input type="button" value="Debug2" onclick="doPost(this.parentNode, 'debug2')">
 <input type="text" name="tw_ids">
 <input type="button" value="Debug3" onclick="doPost(this.parentNode, 'debug3')">
+<input type="button" value="Debug4" onclick="doPost(this.parentNode, 'debug4')">
 <input type="hidden" name="func">
 </form>
 <script type="text/javascript">

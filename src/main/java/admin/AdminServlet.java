@@ -10,9 +10,11 @@ import static util.WebConstant.URL_ADMIN;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -23,6 +25,12 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import com.google.appengine.api.datastore.DatastoreService;
+import com.google.appengine.api.datastore.DatastoreServiceFactory;
+import com.google.appengine.api.datastore.Entity;
+import com.google.appengine.api.datastore.PreparedQuery;
+import com.google.appengine.api.datastore.Query;
 
 import daos.TaskDao;
 import daos.TwitterApiKeyDao;
@@ -317,7 +325,6 @@ public class AdminServlet extends HttpServlet {
   }
 
   public void debug3(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-    System.out.println("AA");
     Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
     try {
       StringBuilder sb = new StringBuilder();
@@ -331,6 +338,20 @@ public class AdminServlet extends HttpServlet {
     } catch (TwitterException e) {
       setErrorMessage(request, e.toString());
     }
+    forwardAdminPage(request, response);
+  }
+
+  public void debug4(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    DatastoreService datastoreService = DatastoreServiceFactory.getDatastoreService();
+    Query query = new Query("TwitterFriend");
+    PreparedQuery pQuery = datastoreService.prepare(query);
+    List<Entity> entities = new ArrayList<>();
+    for (Entity entity : pQuery.asIterable()) {
+      entity.removeProperty("isUnfollow");
+      entities.add(entity);
+    }
+    datastoreService.put(entities);
+    setSuccessMessage(request);
     forwardAdminPage(request, response);
   }
 
