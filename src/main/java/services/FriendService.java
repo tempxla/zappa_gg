@@ -287,7 +287,8 @@ public class FriendService {
       return cnt;
     };
     // カーソル初期化
-    Query<TwitterFriend> query = ofy().load().type(TwitterFriend.class).limit(GAE_PAGE_SIZE);
+    Query<TwitterFriend> query = ofy().load().type(TwitterFriend.class).filter(TwitterFriend.PROP_UNFOLLOW, false)
+        .limit(GAE_PAGE_SIZE);
     NextCursorDao nextCursorDao = new NextCursorDao();
     NextCursor nextCursor = nextCursorDao.loadById(GAE_UNFOLLOW_LIST);
     String cursor = null;
@@ -306,9 +307,6 @@ public class FriendService {
       while (iter.hasNext()) {
         hasNext = true;
         TwitterFriend friend = iter.next();
-        if (friend.isUnfollow()) {
-          continue;
-        }
         friends.put(friend.getId(), friend);
         if (friends.size() == API_LOOKUP_PAGE_SIZE) {
           logUnfollowCount += detectUnfollow.apply(friends);
