@@ -83,14 +83,14 @@ public class FriendService {
     final int limit = Math.min(rateLimitStatus.getRemaining(), API_LIST_MAX_COUNT);
     // カーソル初期化
     long cursor = PagableResponseList.START;
-    NextCursorDao nextCursorDao = new NextCursorDao();
-    NextCursor nextCursor = nextCursorDao.loadById(apiName);
+    final NextCursorDao nextCursorDao = new NextCursorDao();
+    final NextCursor nextCursor = nextCursorDao.loadById(apiName);
     if (nextCursor != null && nextCursor.getNextCursor() != null && !nextCursor.getNextCursor().equals("0")) {
       cursor = Long.valueOf(nextCursor.getNextCursor());
     }
     // Twitter読み込み & DB書き込み
     try {
-      List<Long> ids = new ArrayList<>();
+      final List<Long> ids = new ArrayList<>();
       for (int i = 0; i < limit && cursor != 0; i++) {
         cursor = listFunc.apply(cursor, ids);
       }
@@ -115,9 +115,9 @@ public class FriendService {
    * @throws TwitterException
    */
   public boolean updateFollowerDate(Twitter tw, Date date) throws TwitterException {
-    TwitterFriendDao twitterFriendDao = new TwitterFriendDao();
+    final TwitterFriendDao twitterFriendDao = new TwitterFriendDao();
     // フォロワー
-    long cur = loadList(tw, LIMIT_STATUS_FOLLOWERS, API_FOLLOWERS_LIST, (cursor, ids) -> {
+    final long cur = loadList(tw, LIMIT_STATUS_FOLLOWERS, API_FOLLOWERS_LIST, (cursor, ids) -> {
       PagableResponseList<User> users = tw.getFollowersList(ZappaBot.SCREEN_NAME, cursor, API_LIST_PAGE_SIZE, true,
           false);
       users.stream().forEach(user -> ids.add(user.getId()));
@@ -138,9 +138,9 @@ public class FriendService {
    * @throws TwitterException
    */
   public boolean updateFollowingDate(Twitter tw, Date date) throws TwitterException {
-    TwitterFriendDao twitterFriendDao = new TwitterFriendDao();
+    final TwitterFriendDao twitterFriendDao = new TwitterFriendDao();
     // フォロイー
-    long cur = loadList(tw, LIMIT_STATUS_FRIENDS, API_FRIENDS_LIST, (cursor, ids) -> {
+    final long cur = loadList(tw, LIMIT_STATUS_FRIENDS, API_FRIENDS_LIST, (cursor, ids) -> {
       PagableResponseList<User> users = tw.getFriendsList(ZappaBot.SCREEN_NAME, cursor, API_LIST_PAGE_SIZE, true,
           false);
       users.stream().forEach(user -> ids.add(user.getId()));
@@ -180,8 +180,8 @@ public class FriendService {
     int logFollowCount = 0;
     // カーソル初期化
     Query<TwitterFriend> query = ofy().load().type(TwitterFriend.class).limit(GAE_PAGE_SIZE);
-    NextCursorDao nextCursorDao = new NextCursorDao();
-    NextCursor nextCursor = nextCursorDao.loadById(GAE_FRIEND_LIST);
+    final NextCursorDao nextCursorDao = new NextCursorDao();
+    final NextCursor nextCursor = nextCursorDao.loadById(GAE_FRIEND_LIST);
     String cursor = null;
     if (nextCursor != null) {
       cursor = nextCursor.getNextCursor();
@@ -190,20 +190,20 @@ public class FriendService {
       }
     }
     // リムーブ対象外リスト
-    Set<Long> followList = tw
+    final Set<Long> followList = tw
         .getUserListMembers(ZappaBot.SCREEN_NAME, FOLLOW_LIST_NAME, API_LIST_PAGE_SIZE, PagableResponseList.START, true)
         .stream().map(User::getId).collect(Collectors.toSet());
     // Twitterステータス更新用
-    TwitterFriendDao twitterFriendDao = new TwitterFriendDao();
+    final TwitterFriendDao twitterFriendDao = new TwitterFriendDao();
     final Date removeDay = DateUtil.addDays(date, -REMOVE_DAYS);
     // DBから取得。Twitterの情報を更新。
-    QueryResultIterator<TwitterFriend> iter = query.iterator();
+    final QueryResultIterator<TwitterFriend> iter = query.iterator();
     boolean hasNext = false; // 次ページがあるか
     String newCursor = null;
     try {
       while (iter.hasNext()) {
         hasNext = true;
-        TwitterFriend user = iter.next();
+        final TwitterFriend user = iter.next();
         try {
           if (user.getLastFollowedByDate() != null && user.getLastFollowingDate() == null) {
             // フォローされている & フォローしてない場合、フォロー
@@ -277,12 +277,12 @@ public class FriendService {
     // ログ用
     int logUnfollowCount = 0;
     // Function
-    TwitterFriendDao twitterFriendDao = new TwitterFriendDao();
-    UnfollowUtil unfollowUtil = new UnfollowUtil();
-    Function<Map<Long, TwitterFriend>, Integer> detectUnfollow = friends -> {
+    final TwitterFriendDao twitterFriendDao = new TwitterFriendDao();
+    final UnfollowUtil unfollowUtil = new UnfollowUtil();
+    final Function<Map<Long, TwitterFriend>, Integer> detectUnfollow = friends -> {
       int cnt = 0;
       try {
-        ResponseList<User> users = tw.lookupUsers(friends.keySet().stream().mapToLong(Long::longValue).toArray());
+        final ResponseList<User> users = tw.lookupUsers(friends.keySet().stream().mapToLong(Long::longValue).toArray());
         for (User user : users) {
           if (unfollowUtil.detectUnfollow(user)) {
             twitterFriendDao.updateUnfollow(friends.get(user.getId()), true);
@@ -304,8 +304,8 @@ public class FriendService {
     // カーソル初期化
     Query<TwitterFriend> query = ofy().load().type(TwitterFriend.class).filter(TwitterFriend.PROP_UNFOLLOW, false)
         .limit(GAE_PAGE_SIZE);
-    NextCursorDao nextCursorDao = new NextCursorDao();
-    NextCursor nextCursor = nextCursorDao.loadById(GAE_UNFOLLOW_LIST);
+    final NextCursorDao nextCursorDao = new NextCursorDao();
+    final NextCursor nextCursor = nextCursorDao.loadById(GAE_UNFOLLOW_LIST);
     String cursor = null;
     if (nextCursor != null) {
       cursor = nextCursor.getNextCursor();
@@ -314,14 +314,14 @@ public class FriendService {
       }
     }
     // DBから取得。
-    QueryResultIterator<TwitterFriend> iter = query.iterator();
+    final QueryResultIterator<TwitterFriend> iter = query.iterator();
     boolean hasNext = false; // 次ページがあるか
     String newCursor = null;
     try {
-      Map<Long, TwitterFriend> friends = new HashMap<>();
+      final Map<Long, TwitterFriend> friends = new HashMap<>();
       while (iter.hasNext()) {
         hasNext = true;
-        TwitterFriend friend = iter.next();
+        final TwitterFriend friend = iter.next();
         friends.put(friend.getId(), friend);
         if (friends.size() == API_LOOKUP_PAGE_SIZE) {
           logUnfollowCount += detectUnfollow.apply(friends);

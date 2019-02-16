@@ -81,14 +81,14 @@ public class AdminServlet extends HttpServlet {
    * @throws IOException
    */
   private void run(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-    String func = request.getParameter(REQ_PRM_FUNC);
+    final String func = request.getParameter(REQ_PRM_FUNC);
     if (func == null || func.isEmpty()) {
       setErrorMessage(request, MESSAGE_NO_PARAMS);
       forwardAdminPage(request, response);
       return;
     }
     try {
-      Method method = this.getClass().getMethod(func, HttpServletRequest.class, HttpServletResponse.class);
+      final Method method = this.getClass().getMethod(func, HttpServletRequest.class, HttpServletResponse.class);
       method.invoke(this, request, response);
     } catch (NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException
         | InvocationTargetException e) {
@@ -110,7 +110,7 @@ public class AdminServlet extends HttpServlet {
    */
   public void update(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
     // 保存
-    TwitterApiKey entity = new TwitterApiKey();
+    final TwitterApiKey entity = new TwitterApiKey();
     entity.setId(ZappaBot.SCREEN_NAME);
     entity.setComsumerKey(request.getParameter(REQ_RES_COMSUMER_KEY));
     entity.setComsumerSecret(request.getParameter(REQ_RES_COMSUMER_SECRET));
@@ -135,7 +135,7 @@ public class AdminServlet extends HttpServlet {
    * @throws IOException
    */
   public void load(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-    TwitterApiKey entity = new TwitterApiKeyDao().loadByKey(ZappaBot.SCREEN_NAME);
+    final TwitterApiKey entity = new TwitterApiKeyDao().loadByKey(ZappaBot.SCREEN_NAME);
     if (entity == null) {
       setSuccessMessage(request, MESSAGE_NOT_FOUND);
     } else {
@@ -161,7 +161,7 @@ public class AdminServlet extends HttpServlet {
    */
   public void loadFollower(HttpServletRequest request, HttpServletResponse response)
       throws ServletException, IOException {
-    Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
+    final Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
     try {
       new FriendService().updateFollowerDate(tw, new Date());
       setSuccessMessage(request);
@@ -181,7 +181,7 @@ public class AdminServlet extends HttpServlet {
    */
   public void loadFollowing(HttpServletRequest request, HttpServletResponse response)
       throws ServletException, IOException {
-    Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
+    final Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
     try {
       new FriendService().updateFollowingDate(tw, new Date());
       setSuccessMessage(request);
@@ -201,10 +201,10 @@ public class AdminServlet extends HttpServlet {
    */
   public void showStatus(HttpServletRequest request, HttpServletResponse response)
       throws ServletException, IOException {
-    Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
+    final Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
     try {
-      Map<String, RateLimitStatus> status = new FriendService().loadRateLimitStatus(tw);
-      StringBuilder sb = new StringBuilder();
+      final Map<String, RateLimitStatus> status = new FriendService().loadRateLimitStatus(tw);
+      final StringBuilder sb = new StringBuilder();
       status.entrySet().stream().forEach(e -> {
         sb.append(e.getKey());
         sb.append(System.lineSeparator());
@@ -228,7 +228,7 @@ public class AdminServlet extends HttpServlet {
    */
   public void updateFriendship(HttpServletRequest request, HttpServletResponse response)
       throws ServletException, IOException {
-    Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
+    final Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
     try {
       new FriendService().updateFriendships(tw, new Date());
       setSuccessMessage(request);
@@ -248,7 +248,7 @@ public class AdminServlet extends HttpServlet {
    */
   public void updateUnfollow(HttpServletRequest request, HttpServletResponse response)
       throws ServletException, IOException {
-    Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
+    final Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
     try {
       new FriendService().updateUnfollow(tw);
       setSuccessMessage(request);
@@ -270,7 +270,7 @@ public class AdminServlet extends HttpServlet {
    * @throws IOException
    */
   public void initTask(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-    TaskDao dao = new TaskDao();
+    final TaskDao dao = new TaskDao();
     dao.initAllTask();
     setSuccessMessage(request);
     forwardAdminPage(request, response);
@@ -300,10 +300,11 @@ public class AdminServlet extends HttpServlet {
    * @throws IOException
    */
   public void debug(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-    Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
+    final Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
     try {
-      Set<Long> followList = tw.getUserListMembers(ZappaBot.SCREEN_NAME, "follow", 100, PagableResponseList.START, true)
-          .stream().map(User::getId).collect(Collectors.toSet());
+      final Set<Long> followList = tw
+          .getUserListMembers(ZappaBot.SCREEN_NAME, "follow", 100, PagableResponseList.START, true).stream()
+          .map(User::getId).collect(Collectors.toSet());
       setSuccessMessage(request, followList.toString());
     } catch (TwitterException e) {
       setErrorMessage(request, e.toString());
@@ -312,11 +313,12 @@ public class AdminServlet extends HttpServlet {
   }
 
   public void debug2(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-    Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
+    final Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
     try {
-      Set<String> replied = new HashSet<>();
-      Set<String> speakList = tw.getUserListMembers(ZappaBot.SCREEN_NAME, "speak", 100, PagableResponseList.START, true)
-          .stream().map(User::getScreenName).filter(s -> !replied.contains(s)).collect(Collectors.toSet());
+      final Set<String> replied = new HashSet<>();
+      final Set<String> speakList = tw
+          .getUserListMembers(ZappaBot.SCREEN_NAME, "speak", 100, PagableResponseList.START, true).stream()
+          .map(User::getScreenName).filter(s -> !replied.contains(s)).collect(Collectors.toSet());
       setSuccessMessage(request, speakList.toString());
     } catch (TwitterException e) {
       setErrorMessage(request, e.toString());
@@ -325,10 +327,10 @@ public class AdminServlet extends HttpServlet {
   }
 
   public void debug3(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-    Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
+    final Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
     try {
-      StringBuilder sb = new StringBuilder();
-      String[] param = request.getParameter(REQ_PRM_TW_IDS).split(",");
+      final StringBuilder sb = new StringBuilder();
+      final String[] param = request.getParameter(REQ_PRM_TW_IDS).split(",");
       tw.lookupUsers(Arrays.asList(param).stream().mapToLong(s -> Long.valueOf(s).longValue()).toArray()).stream()
           .forEach(user -> {
             sb.append(user.getScreenName() + "\n" + user.getDescription() + "\n");
@@ -342,10 +344,10 @@ public class AdminServlet extends HttpServlet {
   }
 
   public void debug4(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-    DatastoreService datastoreService = DatastoreServiceFactory.getDatastoreService();
-    Query query = new Query("TwitterFriend");
-    PreparedQuery pQuery = datastoreService.prepare(query);
-    List<Entity> entities = new ArrayList<>();
+    final DatastoreService datastoreService = DatastoreServiceFactory.getDatastoreService();
+    final Query query = new Query("TwitterFriend");
+    final PreparedQuery pQuery = datastoreService.prepare(query);
+    final List<Entity> entities = new ArrayList<>();
     for (Entity entity : pQuery.asIterable()) {
       entity.removeProperty("isUnfollow");
       entities.add(entity);
@@ -394,7 +396,7 @@ public class AdminServlet extends HttpServlet {
    */
   private void forwardAdminPage(HttpServletRequest request, HttpServletResponse response)
       throws ServletException, IOException {
-    RequestDispatcher rd = request.getRequestDispatcher(URL_ADMIN);
+    final RequestDispatcher rd = request.getRequestDispatcher(URL_ADMIN);
     rd.forward(request, response);
   }
 

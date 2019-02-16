@@ -172,6 +172,6 @@ public interface Messages {
       "初回特典に負けちゃったぁ…",
   };
 
-  static String INIT_MESSAGE = "楽になった…";
-  static String ERROR_MESSAGE = "助けてっ";
+  static final String INIT_MESSAGE = "楽になった…";
+  static final String ERROR_MESSAGE = "助けてっ";
 }

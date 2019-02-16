@@ -10,7 +10,7 @@ public class UnfollowUtil {
   private static final int MAX_FOLLOW_COUNT = 5000;
 
   public UnfollowUtil() {
-    String pattern = String.join("|", "(fo[lr][lr]ow\\s*(me|back))", "(#拡散|#フォロバ)");
+    final String pattern = String.join("|", "(fo[lr][lr]ow\\s*(me|back))", "(#拡散|#フォロバ)");
     unfollowPattern = Pattern.compile(pattern, Pattern.CASE_INSENSITIVE);
   }
 

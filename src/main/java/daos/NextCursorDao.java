@@ -13,7 +13,7 @@ public class NextCursorDao {
   }
 
   public void insertNextCursor(String id, String cursor) {
-    NextCursor entity = new NextCursor();
+    final NextCursor entity = new NextCursor();
     entity.setId(id);
     entity.setNextCursor(cursor);
     ofy().save().entities(entity).now();

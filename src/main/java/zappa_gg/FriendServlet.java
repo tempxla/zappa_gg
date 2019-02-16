@@ -55,10 +55,10 @@ public class FriendServlet extends HttpServlet {
    * @throws ServletException
    */
   private void run(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-    Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
-    TaskDao taskDao = new TaskDao();
-    List<Task> tasks = taskDao.loadAll().stream().filter(Task::isEnabled).collect(Collectors.toList());
-    Task oldTask = tasks.stream().min(Comparator.comparing(Task::getUpdateDate)).orElse(null);
+    final Twitter tw = new TwitterService().makeTwitterObject(ZappaBot.SCREEN_NAME);
+    final TaskDao taskDao = new TaskDao();
+    final List<Task> tasks = taskDao.loadAll().stream().filter(Task::isEnabled).collect(Collectors.toList());
+    final Task oldTask = tasks.stream().min(Comparator.comparing(Task::getUpdateDate)).orElse(null);
     if (oldTask != null && DateUtil.addDays(oldTask.getUpdateDate(), INIT_DAYS).compareTo(new Date()) < 0) {
       // 一定期間実行されないタスクがある場合は異常と見なし、初期状態に戻す。
       taskDao.resetTask(tasks);
@@ -83,9 +83,9 @@ public class FriendServlet extends HttpServlet {
 
   private void runTask(Twitter tw, Task task) {
     logger.info(String.format("[START]%s", task.getId()));
-    Date nowDate = new Date();
+    final Date nowDate = new Date();
     boolean taskEnd = false;
-    FriendService friendService = new FriendService();
+    final FriendService friendService = new FriendService();
     try {
       switch (task.getId()) {
       case TaskDao.TASK_GAE_FRIEND_LIST:
@@ -105,7 +105,7 @@ public class FriendServlet extends HttpServlet {
     } catch (TwitterException e) {
       logger.warning(e.toString());
     }
-    int status = taskEnd ? Task.WAIT : Task.RUNNING;
+    final int status = taskEnd ? Task.WAIT : Task.RUNNING;
     new TaskDao().updateTask(task.getId(), status, nowDate);
     logger.info(String.format("[END]%s (%d)", task.getId(), status));
   }

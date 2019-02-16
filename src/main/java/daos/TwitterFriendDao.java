@@ -14,9 +14,9 @@ import entities.TwitterFriend;
 public class TwitterFriendDao {
 
   private void saveLastDate(List<Long> ids, Consumer<TwitterFriend> setDate) {
-    Set<Long> retainSet = new HashSet<>(ids);
+    final Set<Long> retainSet = new HashSet<>(ids);
     // LOAD
-    Collection<TwitterFriend> entities = ofy().load().type(TwitterFriend.class).ids(ids).values();
+    final Collection<TwitterFriend> entities = ofy().load().type(TwitterFriend.class).ids(ids).values();
     // UPATE
     for (TwitterFriend friend : entities) {
       setDate.accept(friend);
@@ -24,7 +24,7 @@ public class TwitterFriendDao {
     }
     // INSERT
     for (Long id : retainSet) {
-      TwitterFriend friend = new TwitterFriend();
+      final TwitterFriend friend = new TwitterFriend();
       friend.setId(id);
       setDate.accept(friend);
       entities.add(friend);

@@ -64,7 +64,7 @@ public final class ZappaBot extends HttpServlet {
         tw.updateStatus(selectStringRandom(Messages.TWEETS));
       }
       // リプライ済みのアカウント
-      Set<String> replied = new HashSet<>();
+      final Set<String> replied = new HashSet<>();
       // 2/3 の確率で返信する。
       if (probably(2, 3)) {
         reply(tw, replied);
@@ -87,15 +87,15 @@ public final class ZappaBot extends HttpServlet {
    */
   private void reply(Twitter tw, Set<String> replied) throws TwitterException {
     // 前回のCRON実行日時
-    Calendar tmp = Calendar.getInstance(TimeZone.getTimeZone(TIMEZONE));
+    final Calendar tmp = Calendar.getInstance(TimeZone.getTimeZone(TIMEZONE));
     tmp.add(Calendar.MINUTE, -PER_MINUTES_CRON);
-    Date prevCronRunAt = tmp.getTime();
+    final Date prevCronRunAt = tmp.getTime();
     for (Status s : tw.getMentionsTimeline()) {
       // 前回のCRON実行日時からの差分
       if (s.getCreatedAt().after(prevCronRunAt)) {
-        String screenName = s.getUser().getScreenName();
+        final String screenName = s.getUser().getScreenName();
         if (!replied.contains(screenName)) {
-          String tweet = makeReplyFormat(screenName, selectStringRandom(Messages.TWEETS));
+          final String tweet = makeReplyFormat(screenName, selectStringRandom(Messages.TWEETS));
           tw.updateStatus(new StatusUpdate(tweet).inReplyToStatusId(s.getId()));
           replied.add(screenName);
         }
@@ -111,11 +111,11 @@ public final class ZappaBot extends HttpServlet {
    * @throws TwitterException
    */
   private void speak(Twitter tw, Set<String> replied) throws TwitterException {
-    Set<String> speakList = tw
+    final Set<String> speakList = tw
         .getUserListMembers(ZappaBot.SCREEN_NAME, SPEAK_LIST_NAME, API_PAGE_SIZE, PagableResponseList.START, true)
         .stream().map(User::getScreenName).filter(s -> !replied.contains(s)).collect(Collectors.toSet());
     if (!speakList.isEmpty()) {
-      String screenName = selectStringRandom(speakList.toArray(new String[speakList.size()]));
+      final String screenName = selectStringRandom(speakList.toArray(new String[speakList.size()]));
       tw.updateStatus(makeReplyFormat(screenName, selectStringRandom(Messages.TWEETS)));
       replied.add(screenName);
     }

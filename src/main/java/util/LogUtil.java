@@ -22,7 +22,7 @@ public class LogUtil {
   }
 
   public static String printStackTraceString(Exception e) {
-    StringWriter sw = new StringWriter();
+    final StringWriter sw = new StringWriter();
     e.printStackTrace(new PrintWriter(sw));
     return sw.toString();
   }

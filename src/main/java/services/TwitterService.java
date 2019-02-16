@@ -9,10 +9,10 @@ import twitter4j.conf.ConfigurationBuilder;
 public class TwitterService {
 
   public Twitter makeTwitterObject(String screenName) {
-    TwitterApiKeyDao dao = new TwitterApiKeyDao();
-    TwitterApiKey apiKey = dao.loadByKey(screenName);
+    final TwitterApiKeyDao dao = new TwitterApiKeyDao();
+    final TwitterApiKey apiKey = dao.loadByKey(screenName);
 
-    ConfigurationBuilder cb = new ConfigurationBuilder();
+    final ConfigurationBuilder cb = new ConfigurationBuilder();
     cb.setDebugEnabled(true).setOAuthAccessToken(apiKey.getAccessToken())
         .setOAuthAccessTokenSecret(apiKey.getTokenSecret()).setOAuthConsumerKey(apiKey.getComsumerKey())
         .setOAuthConsumerSecret(apiKey.getComsumerSecret());
