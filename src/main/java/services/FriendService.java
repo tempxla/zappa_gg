@@ -53,7 +53,6 @@ public class FriendService {
   // 1回の実行で、Twitter: 100 PageSize * 8 Count = 800 ( DataStore: 800 )
   // Entity 書き込み 2時間毎に実行した場合、1日で 800 * 12 = 9,600
   // 1日あたりの制限の半分以下くらいに収まる。
-  // よって2時間毎に実行することとする。
 
   @FunctionalInterface
   private interface Function<T, R> {
