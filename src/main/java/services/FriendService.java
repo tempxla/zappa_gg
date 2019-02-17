@@ -7,7 +7,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -177,6 +176,55 @@ public class FriendService {
   }
 
   /**
+   * DataStore Query 共通処理
+   *
+   * @param cursorName
+   * @param query
+   * @param iterProc
+   * @param postProc
+   * @return
+   * @throws TwitterException
+   */
+  public <T> boolean runQueryIterator(String cursorName, Query<T> query, Consumer<T> iterProc, Runnable postProc)
+      throws TwitterException {
+    // カーソル初期化
+    final NextCursorDao nextCursorDao = new NextCursorDao();
+    final NextCursor nextCursor = nextCursorDao.loadById(cursorName);
+    String cursor = null;
+    if (nextCursor != null) {
+      cursor = nextCursor.getNextCursor();
+      if (cursor != null) {
+        query = query.startAt(Cursor.fromWebSafeString(cursor));
+      }
+    }
+    // DBから取得。
+    final QueryResultIterator<T> iter = query.iterator();
+    boolean hasNext = false; // 1件以上あるか
+    String newCursor = null;
+    try {
+      while (iter.hasNext()) {
+        hasNext = true;
+        iterProc.accept(iter.next());
+      }
+      postProc.run();
+    } finally {
+      // カーソル位置を保存
+      if (hasNext) {
+        newCursor = iter.getCursor().toWebSafeString();
+        if (cursor != null && cursor.equals(newCursor)) {
+          newCursor = null;
+        }
+      }
+      if (nextCursor == null) {
+        nextCursorDao.insertNextCursor(cursorName, newCursor);
+      } else {
+        nextCursorDao.updateNextCursor(nextCursor, newCursor);
+      }
+    }
+    return newCursor == null || newCursor.isEmpty();
+  }
+
+  /**
    * DBから取得したステータスを元に、フォロー/リムーブを実行する。
    *
    * @param tw
@@ -254,7 +302,7 @@ public class FriendService {
       logger.info(String.format("follow:%d remove:%d", logFollowCount[0], logRemoveCount[0]));
     };
     // クエリ実行
-    return new QueryIterator<>(GAE_FRIEND_LIST, query, iterProc).postProc(Optional.of(postProc)).runIter();
+    return runQueryIterator(GAE_FRIEND_LIST, query, iterProc, postProc);
   }
 
   /**
@@ -314,72 +362,7 @@ public class FriendService {
       logger.info(String.format("unfollow:%d", unfollowList.size()));
     };
     // クエリ実行
-    return new QueryIterator<>(GAE_UNFOLLOW_LIST, query, iterProc).postProc(Optional.of(postProc)).runIter();
-  }
-
-  /**
-   *
-   * DataStore QueryIterator
-   *
-   * @param <T>
-   */
-  private class QueryIterator<T> {
-
-    private String cursorName;
-    private Query<T> query;
-    private Consumer<T> iterProc;
-    private Optional<Runnable> postProc;
-
-    public QueryIterator(String cursorName, Query<T> query, Consumer<T> iterProc) {
-      this.cursorName = cursorName;
-      this.query = query;
-      this.iterProc = iterProc;
-      this.postProc = Optional.empty();
-    }
-
-    public boolean runIter() throws TwitterException {
-      // カーソル初期化
-      final NextCursorDao nextCursorDao = new NextCursorDao();
-      final NextCursor nextCursor = nextCursorDao.loadById(cursorName);
-      String cursor = null;
-      if (nextCursor != null) {
-        cursor = nextCursor.getNextCursor();
-        if (cursor != null) {
-          query = query.startAt(Cursor.fromWebSafeString(cursor));
-        }
-      }
-      // DBから取得。
-      final QueryResultIterator<T> iter = query.iterator();
-      boolean hasNext = false; // 1件以上あるか
-      String newCursor = null;
-      try {
-        while (iter.hasNext()) {
-          hasNext = true;
-          iterProc.accept(iter.next());
-        }
-        postProc.orElse(() -> {}).run();
-      } finally {
-        // カーソル位置を保存
-        if (hasNext) {
-          newCursor = iter.getCursor().toWebSafeString();
-          if (cursor != null && cursor.equals(newCursor)) {
-            newCursor = null;
-          }
-        }
-        if (nextCursor == null) {
-          nextCursorDao.insertNextCursor(cursorName, newCursor);
-        } else {
-          nextCursorDao.updateNextCursor(nextCursor, newCursor);
-        }
-      }
-      return newCursor == null || newCursor.isEmpty();
-    }
-
-    public QueryIterator<T> postProc(Optional<Runnable> postProc) {
-      this.postProc = postProc;
-      return this;
-    }
-
+    return runQueryIterator(GAE_UNFOLLOW_LIST, query, iterProc, postProc);
   }
 
 }
