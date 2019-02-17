@@ -7,9 +7,12 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.google.appengine.api.datastore.Cursor;
 import com.google.appengine.api.datastore.QueryResultIterator;
@@ -62,8 +65,18 @@ public class FriendService {
   }
 
   @FunctionalInterface
+  private interface Consumer<T> {
+    void accept(T t) throws TwitterException;
+  }
+
+  @FunctionalInterface
   private interface BiFunction<T1, T2, R> {
     R apply(T1 t1, T2 t2) throws TwitterException;
+  }
+
+  @FunctionalInterface
+  private interface Runnable {
+    void run() throws TwitterException;
   }
 
   /**
@@ -347,6 +360,115 @@ public class FriendService {
     }
     logger.info(String.format("unfollow:%d", logUnfollowCount));
     return newCursor == null || newCursor.isEmpty();
+  }
+
+  public boolean updateUnfollow2(Twitter tw) throws TwitterException {
+    final TwitterFriendDao twitterFriendDao = new TwitterFriendDao();
+    final UnfollowUtil unfollowUtil = new UnfollowUtil();
+    final Function<List<Long>, Stream<Long>> filterUnfollow = following -> {
+      try {
+        return tw.lookupUsers(following.stream().mapToLong(Long::longValue).toArray()).stream()
+            .filter(u -> !unfollowUtil.detectUnfollow(u)).map(User::getId);
+      } catch (TwitterException e) {
+        // statusCode=404, message=No user matches for specified terms., code=17
+        if (e.getErrorCode() == 17) {
+          // ignore
+        } else {
+          LogUtil.sendDirectMessage(tw, String.format("%s: Fail unfollow, statusCode:%d code:%d message:%s",
+              Messages.ERROR_MESSAGE, e.getStatusCode(), e.getErrorCode(), e.getMessage()));
+          throw e;
+        }
+      }
+      return Stream.empty();
+    };
+    final String cursorName = GAE_UNFOLLOW_LIST;
+    final Query<TwitterFriend> query = ofy().load().type(TwitterFriend.class).filter(TwitterFriend.PROP_UNFOLLOW, false)
+        .limit(GAE_PAGE_SIZE);
+    final List<Long> lookupParam = new ArrayList<>();
+    final Map<Long, TwitterFriend> unfollowList = new HashMap<>();
+    final Consumer<TwitterFriend> iterProc = friend -> {
+      lookupParam.add(friend.getId());
+      unfollowList.put(friend.getId(), friend);
+      if (lookupParam.size() == API_LOOKUP_PAGE_SIZE) {
+        filterUnfollow.apply(lookupParam).forEach(id -> unfollowList.remove(id));
+        lookupParam.clear();
+      }
+    };
+    final Runnable postProc = () -> {
+      if (0 < lookupParam.size() && lookupParam.size() < API_LOOKUP_PAGE_SIZE) {
+        filterUnfollow.apply(lookupParam).forEach(id -> unfollowList.remove(id));
+      }
+      unfollowList.values().stream().forEach(e -> twitterFriendDao.updateUnfollow(e, true));
+    };
+    QueryIterator<TwitterFriend> queryIterator = new QueryIterator<>(cursorName, query, iterProc);
+    queryIterator.setPostProc(postProc);
+
+    return queryIterator.runIterator();
+  }
+
+  private class QueryIterator<T> {
+
+    private String cursorName;
+    private Query<T> query;
+    private Consumer<T> iterProc;
+    private Optional<Runnable> preProc;
+    private Optional<Runnable> postProc;
+
+    public QueryIterator(String cursorName, Query<T> query, Consumer<T> iterProc) {
+      this.cursorName = cursorName;
+      this.query = query;
+      this.iterProc = iterProc;
+      this.preProc = Optional.empty();
+      this.postProc = Optional.empty();
+    }
+
+    public boolean runIterator() throws TwitterException {
+      // カーソル初期化
+      final NextCursorDao nextCursorDao = new NextCursorDao();
+      final NextCursor nextCursor = nextCursorDao.loadById(cursorName);
+      String cursor = null;
+      if (nextCursor != null) {
+        cursor = nextCursor.getNextCursor();
+        if (cursor != null) {
+          query = query.startAt(Cursor.fromWebSafeString(cursor));
+        }
+      }
+      // DBから取得。
+      final QueryResultIterator<T> iter = query.iterator();
+      boolean hasNext = false; // 1件以上あるか
+      String newCursor = null;
+      try {
+        preProc.orElse(() -> {}).run();
+        while (iter.hasNext()) {
+          hasNext = true;
+          iterProc.accept(iter.next());
+        }
+        postProc.orElse(() -> {}).run();
+      } finally {
+        // カーソル位置を保存
+        if (hasNext) {
+          newCursor = iter.getCursor().toWebSafeString();
+          if (cursor != null && cursor.equals(newCursor)) {
+            newCursor = null;
+          }
+        }
+        if (nextCursor == null) {
+          nextCursorDao.insertNextCursor(cursorName, newCursor);
+        } else {
+          nextCursorDao.updateNextCursor(nextCursor, newCursor);
+        }
+      }
+      return newCursor == null || newCursor.isEmpty();
+    }
+
+    public void setPostProc(Runnable postProc) {
+      this.postProc = postProc == null ? Optional.empty() : Optional.of(postProc);
+    }
+
+    @SuppressWarnings("unused")
+    public void setPreProc(Runnable preProc) {
+      this.preProc = preProc == null ? Optional.empty() : Optional.of(preProc);
+    }
   }
 
 }
