@@ -115,14 +115,17 @@ public class FriendService {
    * @throws TwitterException
    */
   public boolean updateFollowerDate(Twitter tw, Date date) throws TwitterException {
+    // 更新用
     final TwitterFriendDao twitterFriendDao = new TwitterFriendDao();
     final List<Long> updateList = new ArrayList<>();
+    // 読込
     final Function<Long, Long> listFunc = cursor -> {
       PagableResponseList<User> users = tw.getFollowersList(ZappaBot.SCREEN_NAME, cursor, API_LIST_PAGE_SIZE, true,
           false);
       users.stream().forEach(user -> updateList.add(user.getId()));
       return users.getNextCursor();
     };
+    // 保存
     final Runnable saveFunc = () -> twitterFriendDao.saveLastFollowedByDate(updateList, date);
     return loadList(tw, LIMIT_STATUS_FOLLOWERS, API_FOLLOWERS_LIST, listFunc, saveFunc);
   }
@@ -136,14 +139,17 @@ public class FriendService {
    * @throws TwitterException
    */
   public boolean updateFollowingDate(Twitter tw, Date date) throws TwitterException {
+    // 更新用
     final TwitterFriendDao twitterFriendDao = new TwitterFriendDao();
     final List<Long> updateList = new ArrayList<>();
+    // 読込
     final Function<Long, Long> listFunc = cursor -> {
       PagableResponseList<User> users = tw.getFriendsList(ZappaBot.SCREEN_NAME, cursor, API_LIST_PAGE_SIZE, true,
           false);
       users.stream().forEach(user -> updateList.add(user.getId()));
       return users.getNextCursor();
     };
+    // 保存
     final Runnable saveFunc = () -> twitterFriendDao.saveLastFollowingDate(updateList, date);
     return loadList(tw, LIMIT_STATUS_FRIENDS, API_FRIENDS_LIST, listFunc, saveFunc);
   }
