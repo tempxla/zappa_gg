@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 
+import com.googlecode.objectify.cmd.Query;
+
 import entities.TwitterFriend;
 
 public class TwitterFriendDao {
@@ -49,4 +51,9 @@ public class TwitterFriendDao {
   public void delete(List<TwitterFriend> entities) {
     ofy().delete().entities(entities).now();
   }
+
+  public Query<TwitterFriend> makeQuery(int limit) {
+    return ofy().load().type(TwitterFriend.class).limit(limit);
+  }
+
 }
