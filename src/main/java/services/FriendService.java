@@ -184,7 +184,7 @@ public class FriendService {
    * @return
    * @throws TwitterException
    */
-  public <T> boolean runQueryIterator(String cursorName, Query<T> query, Consumer<T> iterProc, Runnable postProc)
+  private <T> boolean runQueryIterator(String cursorName, Query<T> query, Consumer<T> iterProc, Runnable postProc)
       throws TwitterException {
     // カーソル初期化
     final NextCursorDao nextCursorDao = new NextCursorDao();
