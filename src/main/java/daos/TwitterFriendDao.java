@@ -42,17 +42,11 @@ public class TwitterFriendDao {
     saveLastDate(ids, friend -> friend.setLastFollowingDate(date));
   }
 
-  public void updateUnfollow(TwitterFriend entity, boolean unfollow) {
-    entity.setUnfollow(unfollow);
-    ofy().save().entities(entity).now();
+  public void save(List<TwitterFriend> entities) {
+    ofy().save().entities(entities).now();
   }
 
-  public void unfollow(TwitterFriend entity) {
-    entity.setLastFollowingDate(null);
-    ofy().save().entities(entity).now();
-  }
-
-  public void delete(TwitterFriend user) {
-    ofy().delete().entity(user).now();
+  public void delete(List<TwitterFriend> entities) {
+    ofy().delete().entity(entities).now();
   }
 }

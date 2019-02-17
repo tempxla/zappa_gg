@@ -9,10 +9,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Predicate;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import com.google.appengine.api.datastore.Cursor;
 import com.google.appengine.api.datastore.QueryResultIterator;
@@ -24,7 +22,6 @@ import entities.NextCursor;
 import entities.TwitterFriend;
 import twitter4j.PagableResponseList;
 import twitter4j.RateLimitStatus;
-import twitter4j.ResponseList;
 import twitter4j.Twitter;
 import twitter4j.TwitterException;
 import twitter4j.User;
@@ -189,94 +186,75 @@ public class FriendService {
    */
   public boolean updateFriendships(Twitter tw, Date date) throws TwitterException {
     // ログ用
-    int logRemoveCount = 0;
-    int logFollowCount = 0;
-    // カーソル初期化
-    Query<TwitterFriend> query = ofy().load().type(TwitterFriend.class).limit(GAE_PAGE_SIZE);
-    final NextCursorDao nextCursorDao = new NextCursorDao();
-    final NextCursor nextCursor = nextCursorDao.loadById(GAE_FRIEND_LIST);
-    String cursor = null;
-    if (nextCursor != null) {
-      cursor = nextCursor.getNextCursor();
-      if (cursor != null) {
-        query = query.startAt(Cursor.fromWebSafeString(cursor));
-      }
-    }
+    final int[] logFollowCount = new int[] { 0 };
+    final int[] logRemoveCount = new int[] { 0 };
+    // DB更新用
+    final List<TwitterFriend> updateList = new ArrayList<>();
+    final List<TwitterFriend> deleteList = new ArrayList<>();
     // リムーブ対象外リスト
-    final Set<Long> followList = tw
+    final Set<Long> notRemoveList = tw
         .getUserListMembers(ZappaBot.SCREEN_NAME, FOLLOW_LIST_NAME, API_LIST_PAGE_SIZE, PagableResponseList.START, true)
         .stream().map(User::getId).collect(Collectors.toSet());
-    // Twitterステータス更新用
-    final TwitterFriendDao twitterFriendDao = new TwitterFriendDao();
+    // リムーブ期日
     final Date removeDay = DateUtil.addDays(date, -REMOVE_DAYS);
-    // DBから取得。Twitterの情報を更新。
-    final QueryResultIterator<TwitterFriend> iter = query.iterator();
-    boolean hasNext = false; // 次ページがあるか
-    String newCursor = null;
-    try {
-      while (iter.hasNext()) {
-        hasNext = true;
-        final TwitterFriend user = iter.next();
-        try {
-          if (user.getLastFollowedByDate() != null && user.getLastFollowingDate() == null) {
-            // フォローされている & フォローしてない場合、フォロー
-            // ただし、アンフォロー判定を考慮する
-            if (!user.isUnfollow()) {
-              tw.createFriendship(user.getId());
-              logFollowCount++;
-            }
-          } else if ((user.getLastFollowedByDate() == null && user.getLastFollowingDate() != null)
-              || (user.getLastFollowedByDate() != null && removeDay.after(user.getLastFollowedByDate()))) {
-            // フォローされていない & フォローしている場合、リムーブ
-            // 一定期間フォローされていない場合、リムーブ
-            // ただし、followリストに含まれる場合は対象外
-            if (!followList.contains(user.getId())) {
-              tw.destroyFriendship(user.getId());
-              twitterFriendDao.delete(user);
-              logRemoveCount++;
-            }
-          } else if (user.getLastFollowingDate() != null && removeDay.after(user.getLastFollowingDate())) {
-            // 一定期間フォローしていない場合、DBから削除
-            // ただし、アンフォロー判定を考慮する
-            if (!user.isUnfollow()) {
-              twitterFriendDao.delete(user);
-            }
+    // クエリ
+    final Query<TwitterFriend> query = ofy().load().type(TwitterFriend.class).limit(GAE_PAGE_SIZE);
+    // メイン
+    final Consumer<TwitterFriend> iterProc = user -> {
+      try {
+        if (user.getLastFollowedByDate() != null && user.getLastFollowingDate() == null) {
+          // フォローされている & フォローしてない場合、フォロー
+          // ただし、アンフォロー判定を考慮する
+          if (!user.isUnfollow()) {
+            tw.createFriendship(user.getId());
+            logFollowCount[0]++;
           }
-          // フォロー判定
-          if (user.getLastFollowingDate() != null && user.isUnfollow() && !followList.contains(user.getId())) {
-            // フォローしている & アンフォロー判定 & フォローリストにない場合、リムーブを実行。
+        } else if ((user.getLastFollowedByDate() == null && user.getLastFollowingDate() != null)
+            || (user.getLastFollowedByDate() != null && removeDay.after(user.getLastFollowedByDate()))) {
+          // フォローされていない & フォローしている場合、リムーブ
+          // 一定期間フォローされていない場合、リムーブ
+          // ただし、followリストに含まれる場合は対象外
+          if (!notRemoveList.contains(user.getId())) {
             tw.destroyFriendship(user.getId());
-            twitterFriendDao.unfollow(user);
-            logRemoveCount++;
+            logRemoveCount[0]++;
+            deleteList.add(user);
           }
-        } catch (TwitterException e) {
-          // ユーザーが見つからない場合、DBから削除
-          // statusCode=403, message=Cannot find specified user., code=108
-          if (e.getErrorCode() == 108) {
-            twitterFriendDao.delete(user);
-          } else {
-            LogUtil.sendDirectMessage(tw, String.format("%s: user:%d statusCode:%d code:%d message:%s",
-                Messages.ERROR_MESSAGE, user.getId(), e.getStatusCode(), e.getErrorCode(), e.getMessage()));
-            throw e;
+        } else if (user.getLastFollowingDate() != null && removeDay.after(user.getLastFollowingDate())) {
+          // 一定期間フォローしていない場合、DBから削除
+          // ただし、アンフォロー判定を考慮する
+          if (!user.isUnfollow()) {
+            deleteList.add(user);
           }
         }
-      }
-    } finally {
-      // カーソル位置を保存
-      if (hasNext) {
-        newCursor = iter.getCursor().toWebSafeString();
-        if (cursor != null && cursor.equals(newCursor)) {
-          newCursor = null;
+        // フォロー判定
+        if (user.getLastFollowingDate() != null && user.isUnfollow() && !notRemoveList.contains(user.getId())) {
+          // フォローしている & アンフォロー判定 & フォローリストにない場合、リムーブを実行。
+          tw.destroyFriendship(user.getId());
+          logRemoveCount[0]++;
+          user.setLastFollowingDate(null); // フォローしてないことにする
+          updateList.add(user);
+        }
+      } catch (TwitterException e) {
+        // ユーザーが見つからない場合、DBから削除
+        // statusCode=403, message=Cannot find specified user., code=108
+        if (e.getErrorCode() == 108) {
+          deleteList.add(user);
+        } else {
+          LogUtil.sendDirectMessage(tw, String.format("%s: user:%d statusCode:%d code:%d message:%s",
+              Messages.ERROR_MESSAGE, user.getId(), e.getStatusCode(), e.getErrorCode(), e.getMessage()));
+          throw e;
         }
       }
-      if (nextCursor == null) {
-        nextCursorDao.insertNextCursor(GAE_FRIEND_LIST, newCursor);
-      } else {
-        nextCursorDao.updateNextCursor(nextCursor, newCursor);
-      }
-    }
-    logger.info(String.format("follow:%d remove:%d", logFollowCount, logRemoveCount));
-    return newCursor == null || newCursor.isEmpty();
+    };
+    // 後処理
+    final Runnable postProc = () -> {
+      final TwitterFriendDao twitterFriendDao = new TwitterFriendDao();
+      twitterFriendDao.save(updateList);
+      twitterFriendDao.delete(deleteList);
+      logger.info(String.format("follow:%d remove:%d", logFollowCount[0], logRemoveCount[0]));
+    };
+    // クエリ実行
+    return new QueryIterator<>(GAE_FRIEND_LIST, query, iterProc).postProc(Optional.of(postProc)).runIter();
   }
 
   /**
@@ -287,21 +265,22 @@ public class FriendService {
    * @throws TwitterException
    */
   public boolean updateUnfollow(Twitter tw) throws TwitterException {
-    // ログ用
-    int logUnfollowCount = 0;
-    // Function
-    final TwitterFriendDao twitterFriendDao = new TwitterFriendDao();
+    // DB更新用
+    final List<TwitterFriend> unfollowList = new ArrayList<>();
+    // DBから取得したキャッシュ
+    final Map<Long, TwitterFriend> queryCache = new HashMap<>();
+    // Twitter APIのパラメタ
+    final List<Long> lookupParam = new ArrayList<>();
+    // Twitterからユーザー情報取得
     final UnfollowUtil unfollowUtil = new UnfollowUtil();
-    final Function<Map<Long, TwitterFriend>, Integer> detectUnfollow = friends -> {
-      int cnt = 0;
+    final Runnable detectUnfollow = () -> {
       try {
-        final ResponseList<User> users = tw.lookupUsers(friends.keySet().stream().mapToLong(Long::longValue).toArray());
-        for (User user : users) {
-          if (unfollowUtil.detectUnfollow(user)) {
-            twitterFriendDao.updateUnfollow(friends.get(user.getId()), true);
-            cnt++;
-          }
-        }
+        tw.lookupUsers(lookupParam.stream().mapToLong(Long::longValue).toArray()).stream()
+            .filter(unfollowUtil::detectUnfollow).map(User::getId).forEach(id -> {
+              TwitterFriend e = queryCache.get(id);
+              e.setUnfollow(true);
+              unfollowList.add(e);
+            });
       } catch (TwitterException e) {
         // statusCode=404, message=No user matches for specified terms., code=17
         if (e.getErrorCode() == 17) {
@@ -312,117 +291,53 @@ public class FriendService {
           throw e;
         }
       }
-      return cnt;
     };
-    // カーソル初期化
-    Query<TwitterFriend> query = ofy().load().type(TwitterFriend.class).filter(TwitterFriend.PROP_UNFOLLOW, false)
-        .limit(GAE_PAGE_SIZE);
-    final NextCursorDao nextCursorDao = new NextCursorDao();
-    final NextCursor nextCursor = nextCursorDao.loadById(GAE_UNFOLLOW_LIST);
-    String cursor = null;
-    if (nextCursor != null) {
-      cursor = nextCursor.getNextCursor();
-      if (cursor != null) {
-        query = query.startAt(Cursor.fromWebSafeString(cursor));
-      }
-    }
-    // DBから取得。
-    final QueryResultIterator<TwitterFriend> iter = query.iterator();
-    boolean hasNext = false; // 次ページがあるか
-    String newCursor = null;
-    try {
-      final Map<Long, TwitterFriend> friends = new HashMap<>();
-      while (iter.hasNext()) {
-        hasNext = true;
-        final TwitterFriend friend = iter.next();
-        friends.put(friend.getId(), friend);
-        if (friends.size() == API_LOOKUP_PAGE_SIZE) {
-          logUnfollowCount += detectUnfollow.apply(friends);
-          friends.clear();
-        }
-      }
-      if (0 < friends.size() && friends.size() < API_LOOKUP_PAGE_SIZE) {
-        logUnfollowCount += detectUnfollow.apply(friends);
-      }
-    } finally {
-      // カーソル位置を保存
-      if (hasNext) {
-        newCursor = iter.getCursor().toWebSafeString();
-        if (cursor != null && cursor.equals(newCursor)) {
-          newCursor = null;
-        }
-      }
-      if (nextCursor == null) {
-        nextCursorDao.insertNextCursor(GAE_UNFOLLOW_LIST, newCursor);
-      } else {
-        nextCursorDao.updateNextCursor(nextCursor, newCursor);
-      }
-    }
-    logger.info(String.format("unfollow:%d", logUnfollowCount));
-    return newCursor == null || newCursor.isEmpty();
-  }
-
-  public boolean updateUnfollow2(Twitter tw) throws TwitterException {
-    final TwitterFriendDao twitterFriendDao = new TwitterFriendDao();
-    final UnfollowUtil unfollowUtil = new UnfollowUtil();
-    final Function<List<Long>, Stream<Long>> filterUnfollow = following -> {
-      try {
-        return tw.lookupUsers(following.stream().mapToLong(Long::longValue).toArray()).stream()
-            .filter(u -> !unfollowUtil.detectUnfollow(u)).map(User::getId);
-      } catch (TwitterException e) {
-        // statusCode=404, message=No user matches for specified terms., code=17
-        if (e.getErrorCode() == 17) {
-          // ignore
-        } else {
-          LogUtil.sendDirectMessage(tw, String.format("%s: Fail unfollow, statusCode:%d code:%d message:%s",
-              Messages.ERROR_MESSAGE, e.getStatusCode(), e.getErrorCode(), e.getMessage()));
-          throw e;
-        }
-      }
-      return Stream.empty();
-    };
-    final String cursorName = GAE_UNFOLLOW_LIST;
+    // クエリ
     final Query<TwitterFriend> query = ofy().load().type(TwitterFriend.class).filter(TwitterFriend.PROP_UNFOLLOW, false)
         .limit(GAE_PAGE_SIZE);
-    final List<Long> lookupParam = new ArrayList<>();
-    final Map<Long, TwitterFriend> unfollowList = new HashMap<>();
-    final Consumer<TwitterFriend> iterProc = friend -> {
-      lookupParam.add(friend.getId());
-      unfollowList.put(friend.getId(), friend);
+    // メイン
+    final Consumer<TwitterFriend> iterProc = user -> {
+      lookupParam.add(user.getId());
+      queryCache.put(user.getId(), user);
       if (lookupParam.size() == API_LOOKUP_PAGE_SIZE) {
-        filterUnfollow.apply(lookupParam).forEach(id -> unfollowList.remove(id));
+        detectUnfollow.run();
         lookupParam.clear();
+        queryCache.clear();
       }
     };
+    // 後処理
     final Runnable postProc = () -> {
       if (0 < lookupParam.size() && lookupParam.size() < API_LOOKUP_PAGE_SIZE) {
-        filterUnfollow.apply(lookupParam).forEach(id -> unfollowList.remove(id));
+        detectUnfollow.run();
       }
-      unfollowList.values().stream().forEach(e -> twitterFriendDao.updateUnfollow(e, true));
+      new TwitterFriendDao().save(unfollowList);
+      logger.info(String.format("unfollow:%d", unfollowList.size()));
     };
-    QueryIterator<TwitterFriend> queryIterator = new QueryIterator<>(cursorName, query, iterProc);
-    queryIterator.setPostProc(postProc);
-
-    return queryIterator.runIterator();
+    // クエリ実行
+    return new QueryIterator<>(GAE_UNFOLLOW_LIST, query, iterProc).postProc(Optional.of(postProc)).runIter();
   }
 
+  /**
+   *
+   * DataStore QueryIterator
+   *
+   * @param <T>
+   */
   private class QueryIterator<T> {
 
     private String cursorName;
     private Query<T> query;
     private Consumer<T> iterProc;
-    private Optional<Runnable> preProc;
     private Optional<Runnable> postProc;
 
     public QueryIterator(String cursorName, Query<T> query, Consumer<T> iterProc) {
       this.cursorName = cursorName;
       this.query = query;
       this.iterProc = iterProc;
-      this.preProc = Optional.empty();
       this.postProc = Optional.empty();
     }
 
-    public boolean runIterator() throws TwitterException {
+    public boolean runIter() throws TwitterException {
       // カーソル初期化
       final NextCursorDao nextCursorDao = new NextCursorDao();
       final NextCursor nextCursor = nextCursorDao.loadById(cursorName);
@@ -438,7 +353,6 @@ public class FriendService {
       boolean hasNext = false; // 1件以上あるか
       String newCursor = null;
       try {
-        preProc.orElse(() -> {}).run();
         while (iter.hasNext()) {
           hasNext = true;
           iterProc.accept(iter.next());
@@ -461,14 +375,11 @@ public class FriendService {
       return newCursor == null || newCursor.isEmpty();
     }
 
-    public void setPostProc(Runnable postProc) {
-      this.postProc = postProc == null ? Optional.empty() : Optional.of(postProc);
+    public QueryIterator<T> postProc(Optional<Runnable> postProc) {
+      this.postProc = postProc;
+      return this;
     }
 
-    @SuppressWarnings("unused")
-    public void setPreProc(Runnable preProc) {
-      this.preProc = preProc == null ? Optional.empty() : Optional.of(preProc);
-    }
   }
 
 }
