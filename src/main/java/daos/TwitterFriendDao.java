@@ -47,6 +47,6 @@ public class TwitterFriendDao {
   }
 
   public void delete(List<TwitterFriend> entities) {
-    ofy().delete().entity(entities).now();
+    ofy().delete().entities(entities).now();
   }
 }
