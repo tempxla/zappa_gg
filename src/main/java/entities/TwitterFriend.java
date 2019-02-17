@@ -10,7 +10,6 @@ import lombok.Setter;
 
 @Entity
 public class TwitterFriend {
-  public static final String PROP_UNFOLLOW = "unfollow";
   @Id
   @Getter
   @Setter

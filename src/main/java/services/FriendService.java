@@ -340,16 +340,19 @@ public class FriendService {
       }
     };
     // クエリ
-    final Query<TwitterFriend> query = ofy().load().type(TwitterFriend.class).filter(TwitterFriend.PROP_UNFOLLOW, false)
-        .limit(GAE_PAGE_SIZE);
+    final Query<TwitterFriend> query = ofy().load().type(TwitterFriend.class).limit(GAE_PAGE_SIZE);
     // メイン
     final Consumer<TwitterFriend> iterProc = user -> {
-      lookupParam.add(user.getId());
-      queryCache.put(user.getId(), user);
-      if (lookupParam.size() == API_LOOKUP_PAGE_SIZE) {
-        detectUnfollow.run();
-        lookupParam.clear();
-        queryCache.clear();
+      // 一度アンフォローと推定されたものはスキップ
+      // QueryでFilterはうまくいかないかも。。。
+      if (!user.isUnfollow()) {
+        lookupParam.add(user.getId());
+        queryCache.put(user.getId(), user);
+        if (lookupParam.size() == API_LOOKUP_PAGE_SIZE) {
+          detectUnfollow.run();
+          lookupParam.clear();
+          queryCache.clear();
+        }
       }
     };
     // 後処理
