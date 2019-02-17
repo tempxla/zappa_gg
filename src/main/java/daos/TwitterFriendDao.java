@@ -2,6 +2,7 @@ package daos;
 
 import static com.googlecode.objectify.ObjectifyService.ofy;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
@@ -16,7 +17,8 @@ public class TwitterFriendDao {
   private void saveLastDate(List<Long> ids, Consumer<TwitterFriend> setDate) {
     Set<Long> retainSet = new HashSet<>(ids);
     // LOAD
-    Collection<TwitterFriend> entities = ofy().load().type(TwitterFriend.class).ids(ids).values();
+    Collection<TwitterFriend> loaded = ofy().load().type(TwitterFriend.class).ids(ids).values();
+    List<TwitterFriend> entities = new ArrayList<>(loaded);
     // UPATE
     for (TwitterFriend friend : entities) {
       setDate.accept(friend);
