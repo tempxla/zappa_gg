@@ -282,8 +282,10 @@ public class FriendService {
         if (e.getErrorCode() == 108) {
           deleteList.add(user);
         } else {
-          LogUtil.sendDirectMessage(tw, String.format("%s: user:%d statusCode:%d code:%d message:%s",
-              Messages.ERROR_MESSAGE, user.getId(), e.getStatusCode(), e.getErrorCode(), e.getMessage()));
+          String msg = String.format("%s: user:%d statusCode:%d code:%d message:%s", Messages.ERROR_MESSAGE,
+              user.getId(), e.getStatusCode(), e.getErrorCode(), e.getMessage());
+          logger.severe(msg);
+          LogUtil.sendDirectMessage(tw, msg);
           throw e;
         }
       }
@@ -328,8 +330,10 @@ public class FriendService {
         if (e.getErrorCode() == 17) {
           // ignore
         } else {
-          LogUtil.sendDirectMessage(tw, String.format("%s: Fail unfollow, statusCode:%d code:%d message:%s",
-              Messages.ERROR_MESSAGE, e.getStatusCode(), e.getErrorCode(), e.getMessage()));
+          String msg = String.format("%s: Fail unfollow, statusCode:%d code:%d message:%s", Messages.ERROR_MESSAGE,
+              e.getStatusCode(), e.getErrorCode(), e.getMessage());
+          logger.severe(msg);
+          LogUtil.sendDirectMessage(tw, msg);
           throw e;
         }
       }
