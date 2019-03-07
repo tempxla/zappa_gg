@@ -279,13 +279,13 @@ public class FriendService {
       } catch (TwitterException e) {
         // ユーザーが見つからない場合、DBから削除
         // statusCode=403, message=Cannot find specified user., code=108
-        if (e.getErrorCode() == 108) {
+        if (e.getErrorCode() == 108 || e.getStatusCode() == 404) {
           deleteList.add(user);
         } else {
           String msg = String.format("%s: user:%d statusCode:%d code:%d message:%s", Messages.ERROR_MESSAGE,
               user.getId(), e.getStatusCode(), e.getErrorCode(), e.getMessage());
           logger.severe(msg);
-          LogUtil.sendDirectMessage(tw, msg);
+//          LogUtil.sendDirectMessage(tw, msg);
           throw e;
         }
       }
@@ -333,7 +333,7 @@ public class FriendService {
           String msg = String.format("%s: Fail unfollow, statusCode:%d code:%d message:%s", Messages.ERROR_MESSAGE,
               e.getStatusCode(), e.getErrorCode(), e.getMessage());
           logger.severe(msg);
-          LogUtil.sendDirectMessage(tw, msg);
+//          LogUtil.sendDirectMessage(tw, msg);
           throw e;
         }
       }
