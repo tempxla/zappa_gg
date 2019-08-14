@@ -20,7 +20,8 @@ public class UnfollowUtil {
       return false;
     }
     // 言語
-    if (user.getLang().equals("ar")) { // アラビア語
+    String lang = user.getLang() == null ? "" : user.getLang();
+    if (lang.equals("ar")) { // アラビア語
       if (user.getFriendsCount() >= MAX_FOLLOW_COUNT) {
         return true;
       }
@@ -30,13 +31,14 @@ public class UnfollowUtil {
       return true;
     }
     // 説明文
-    if (user.getDescription().isEmpty()) {
+    String description = user.getDescription() == null ? "" : user.getDescription();
+    if (description.isEmpty()) {
       if (user.getFriendsCount() >= MAX_FOLLOW_COUNT) {
         return true;
       }
     }
     // 説明文
-    boolean match = unfollowPattern.matcher(user.getDescription()).find();
+    boolean match = unfollowPattern.matcher(description).find();
     return match;
   }
 
