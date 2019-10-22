@@ -281,10 +281,12 @@ public class FriendService {
         // statusCode=403, message=Cannot find specified user., code=108
         if (e.getErrorCode() == 108 || e.getStatusCode() == 404) {
           deleteList.add(user);
-        } else if (e.getErrorCode() == 162) {
+        } else if (e.getErrorCode() == 162 || e.getErrorCode() == 160) {
+          // ブロックされたユーザは無視
           // statusCode=403, message=You have been blocked from following this account at
           // the request of the user., code=162
-          // ブロックされたユーザは無視
+          // フォローリクエスト済みは無視
+          // statusCode=403, message=You've already requested to follow []., code=160,
         } else {
           String msg = String.format("%s: user:%d statusCode:%d code:%d message:%s", Messages.ERROR_MESSAGE,
               user.getId(), e.getStatusCode(), e.getErrorCode(), e.getMessage());

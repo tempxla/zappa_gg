@@ -74,7 +74,12 @@ public final class ZappaBot extends HttpServlet {
         speak(tw, replied);
       }
     } catch (TwitterException e) {
-      logger.warning(e.toString());
+      if (e.getErrorCode() == 187) {
+        // ツイート重複は無視
+        // statusCode=403, message=Status is a duplicate., code=187
+      } else {
+        logger.warning(e.toString());
+      }
     }
   }
 
